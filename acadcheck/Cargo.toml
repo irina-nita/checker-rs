@@ -1,0 +1,22 @@
+[package]
+name = "acadcheck"
+description = "A simple to use, flexible library for building checkers used in programming contests or homeworks."
+version = "0.1.0"
+authors = ["Irina Nita"]
+edition = "2021"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/acadnet-dev/checker-rs"
+exclude = [".rustfmt.toml"]
+
+[features]
+# Enable serialization of checker output.
+default = ["use-serde"]
+use-serde = ["dep:serde"]
+
+[dependencies]
+serde = {version="1.0", features = ["derive"], optional = true}
+thiserror = "1.0.44"
+anyhow = "1.0"
+regex = "1.9.1"
+tokio = { version = "1", features = ["full"] }
