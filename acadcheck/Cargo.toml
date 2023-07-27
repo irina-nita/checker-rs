@@ -6,6 +6,7 @@ edition = "2021"
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/acadnet-dev/checker-rs"
+exclude = [".rustfmt.toml"]
 
 [features]
 # Enable serialization of checker output.
