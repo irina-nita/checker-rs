@@ -1,5 +1,8 @@
 //! Traits, structs and helpers related for defining language processors.
 
+pub mod gcc;
+pub mod python;
+
 /// Errors regarding the language processor used during compiling or
 /// interpreting.
 #[cfg_attr(feature = "use-serde", derive(serde::Serialize, serde::Deserialize))]
@@ -28,27 +31,29 @@ pub trait Compiler: LanguageProcessor {
     /// Compiling a program. Returns the error of the compilation.
     /// If it was successful, it returns the command for running the executable
     /// produced.
-    fn run_compiled<S>(
+    fn run_compiled<S, I>(
         &self,
-        flags: Vec<S>,
+        flags: Option<I>,
         source: &crate::solution::Source,
         exec: std::path::PathBuf,
-    ) -> Result<std::process::Command, crate::language::Error>
+    ) -> Result<Vec<std::ffi::OsString>, crate::language::Error>
     where
-        S: AsRef<std::ffi::OsStr>;
+        S: AsRef<std::ffi::OsStr>,
+        I: IntoIterator<Item = S>;
 }
 
 /// Interpreter trait for Language Processors.
 pub trait Interpreter: LanguageProcessor {
     /// Returns the command for running the executable along with the
     /// interpreter..
-    fn run_interpreted<S>(
+    fn run_interpreted<S, I>(
         &self,
-        flags: Vec<S>,
+        flags: Option<I>,
         source: crate::solution::Source,
-    ) -> std::process::Command
+    ) -> Vec<std::ffi::OsString>
     where
-        S: AsRef<std::ffi::OsStr>;
+        S: AsRef<std::ffi::OsStr>,
+        I: IntoIterator<Item = S>;
 }
 
 /// Makefiles could be considered as a form of "language processors". It depends
@@ -60,8 +65,5 @@ where
     /// Returns the command that acts as a rule for run.
     /// If a build was required before-hand, the implementation should propagate
     /// the error as [`language::Error`](crate::language::Error).
-    fn run(&self, target: Option<S>) -> Result<std::process::Command, crate::language::Error>;
+    fn run(&self, target: Option<S>) -> Result<Vec<std::ffi::OsString>, crate::language::Error>;
 }
-
-#[cfg(test)]
-mod test {}
