@@ -1,7 +1,7 @@
 [package]
 name = "acadcheck"
 description = "A simple to use, flexible library for building checkers used in programming contests or homeworks."
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Irina Nita"]
 edition = "2021"
 license = "MIT"
