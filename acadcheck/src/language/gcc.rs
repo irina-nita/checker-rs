@@ -19,7 +19,7 @@ pub enum SupportedGccLanguage {
 
 #[derive(Debug)]
 #[cfg_attr(feature = "use-serde", derive(serde::Serialize, serde::Deserialize))]
-struct Gcc {
+pub struct Gcc {
     #[cfg_attr(feature = "use-serde", serde(rename = "gcc.language"))]
     pub language: SupportedGccLanguage,
 }
