@@ -7,11 +7,8 @@ pub struct Solution<L>
 where
     L: crate::language::LanguageProcessor,
 {
-    /// Thread-safe reference-counting pointer to a LanguageProcessor.
-    /// Multiple instances of the checker running in a multi-threaded
-    /// application may use the same languageprocessor, without having to
-    /// consume it.
-    pub processor: std::sync::Arc<Box<L>>,
+    /// Language processor used to run the solution.
+    pub processor: L,
 
     /// Path to the file or directory where the solution is stored.
     pub source: Source,
@@ -21,14 +18,14 @@ impl<L> Solution<L>
 where
     L: crate::language::LanguageProcessor,
 {
-    pub fn new(processor: std::sync::Arc<Box<L>>, source: Source) -> Self {
+    pub fn new(processor: L, source: Source) -> Self {
         Self { processor, source }
     }
 }
 
 /// Multiple variants for the solution source type regarding the way it is
 /// structured. Currently supports three types, but is non-exhaustive.
-#[cfg_attr(feature = "use-serde", derive(serde::Serialize))]
+#[cfg_attr(feature = "use-serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Source {

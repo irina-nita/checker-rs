@@ -24,13 +24,18 @@
 #![allow(dead_code)]
 
 extern crate regex;
+extern crate sanitize_filename;
 extern crate thiserror;
 extern crate tokio;
 
 #[cfg(feature = "use-serde")]
 extern crate serde;
+#[cfg(feature = "use-serde")]
+extern crate serde_json;
 
 pub mod checker;
 pub mod language;
 pub mod solution;
 pub(crate) mod util;
+pub use checker::tests::Error as TestError;
+pub use checker::tests::Output as TestOutput;
