@@ -1,3 +1,5 @@
+use file_diff::diff_files;
+
 #[derive(std::fmt::Debug)]
 #[cfg_attr(feature = "use-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CheckerConfig<I, O>
@@ -56,4 +58,20 @@ where
     Rhs: Sized,
 {
     fn ceq(&self, other: &Rhs) -> bool;
+}
+
+impl OutputPartialEq<std::path::PathBuf> for std::path::PathBuf {
+    fn ceq(&self, other: &std::path::PathBuf) -> bool {
+        let mut f = match std::fs::File::open(self) {
+            Ok(o) => o,
+            Err(e) => {return false;}
+        };
+
+        let mut g = match std::fs::File::open(other) {
+            Ok(o) => o,
+            Err(e) => {return false;}
+        };
+
+        diff_files(&mut f, &mut g)
+    }
 }
