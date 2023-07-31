@@ -50,3 +50,10 @@ pub enum OutputType {
     },
     None,
 }
+
+pub trait OutputPartialEq<Rhs = Self>
+where
+    Rhs: Sized,
+{
+    fn ceq(&self, other: &Rhs) -> bool;
+}

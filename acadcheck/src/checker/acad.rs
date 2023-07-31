@@ -1,7 +1,7 @@
 pub struct Checker<I, O, F, T, S>
 where
     I: std::fmt::Debug + Eq + std::hash::Hash,
-    O: std::fmt::Debug + PartialEq<O>,
+    O: std::fmt::Debug + crate::checker::config::OutputPartialEq<O> + std::cmp::PartialEq,
     F: Fn(&T, Vec<&I>) -> std::collections::HashMap<I, Result<O, crate::checker::tests::Error>>,
     T: IntoIterator<Item = S>,
     S: AsRef<std::ffi::OsStr>,
@@ -14,7 +14,7 @@ where
 impl<I, O, F, T, S> Checker<I, O, F, T, S>
 where
     I: std::fmt::Debug + Eq + std::hash::Hash,
-    O: std::fmt::Debug + PartialEq<O>,
+    O: std::fmt::Debug + crate::checker::config::OutputPartialEq<O> + std::cmp::PartialEq,
     F: Fn(&T, Vec<&I>) -> std::collections::HashMap<I, Result<O, crate::checker::tests::Error>>,
     T: IntoIterator<Item = S>,
     S: AsRef<std::ffi::OsStr>,
@@ -45,7 +45,7 @@ where
             .into_iter()
             .map(|m| match m.1 {
                 Ok(output) => {
-                    if output.eq(self.config.in_refs.get(&m.0).unwrap()) {
+                    if output.ceq(self.config.in_refs.get(&m.0).unwrap()) {
                         return if scored {
                             crate::checker::tests::Output::Score(score_per_test)
                         } else {
