@@ -7,15 +7,15 @@
 //!
 //! ```toml
 //! [dependencies]
-//! acadnet = "0.1.5"
+//! acadcheck = "0.1.7"
 //! ```
 //!
 //! # __Features__
 //!
-//! * `serde` for serialisation of tests output and checker configuration.
+//! * `use-serde` for serialisation of tests output and checker configuration.
 //!
 //! ```toml
-//! acadnet = { version = "0.1.5", features = ["use-serde"] }
+//! acadcheck = { version = "0.1.7", features = ["use-serde"] }
 //! ```
 #![deny(clippy::undocumented_unsafe_blocks)]
 #![deny(clippy::panicking_unwrap)]

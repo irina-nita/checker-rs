@@ -154,10 +154,7 @@ where
                     } else {
                         (
                             m.0,
-                            crate::checker::Output::Failed(format!(
-                                "{}",
-                                e.to_string()
-                            )),
+                            crate::checker::Output::Failed(format!("{}", e.to_string())),
                         )
                     };
                 }

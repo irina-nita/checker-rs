@@ -39,7 +39,7 @@ pub enum MonitorType {
     #[cfg_attr(feature = "use-serde", serde(rename = "time"))]
     Timeout { limit: std::time::Duration },
     #[cfg_attr(feature = "use-serde", serde(rename = "memory.footprint"))]
-    TimeFootprint
+    TimeFootprint,
 }
 
 /// Output types
@@ -89,7 +89,7 @@ impl PartialEq<std::path::PathBuf> for std::path::PathBuf {
 
         f.rewind().unwrap();
         g.rewind().unwrap();
-        
+
         match g.read_to_string(other_inner) {
             Ok(_) => {}
             Err(_) => {
