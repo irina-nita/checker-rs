@@ -52,6 +52,7 @@ pub enum OutputType {
     Scored {
         per_test: usize,
     },
+    #[cfg_attr(feature = "use-serde", serde(rename = "none"))]
     None,
 }
 
