@@ -1,15 +1,19 @@
+//! Python implementation as Interpreter with support for specific versions.
+
+use super::Interpreter;
 #[derive(Debug)]
 #[cfg_attr(feature = "use-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Python {
-    #[serde(rename = "python.version")]
     version: Option<String>,
 }
 
 impl Python {
+    /// Returns a Python instance without a version.
     pub fn new() -> Self {
         return Self { version: None };
     }
 
+    /// Adds a version. If the format is invalid, it will return an error.
     pub fn with_version<S>(mut self, version: S) -> Result<Self, anyhow::Error>
     where
         S: AsRef<str>,
@@ -26,7 +30,16 @@ impl Python {
     }
 }
 
-impl crate::language::LanguageProcessor for Python {}
+impl crate::language::LanguageProcessor for Python {
+    fn run(
+        &self,
+        args: Option<Vec<std::ffi::OsString>>,
+        source: crate::solution::Source,
+        _exec: Option<std::path::PathBuf>,
+    ) -> Result<Vec<std::ffi::OsString>, crate::language::Error> {
+        Ok(self.run_interpreted(args, source))
+    }
+}
 
 impl crate::language::Interpreter for Python {
     fn run_interpreted<S, I>(
@@ -50,11 +63,11 @@ impl crate::language::Interpreter for Python {
             crate::solution::Source::Directory(dir) => {
                 std::ffi::OsString::from(format!("{}/*", dir.to_str().unwrap()))
             }
-            crate::solution::Source::DirectoryRegex { dir, regex } => {
-                std::ffi::OsString::from(format!("{}/{}", dir.to_str().unwrap(), regex.as_str()))
+            crate::solution::Source::Regex { regex } => {
+                std::ffi::OsString::from(format!("{}", regex.as_str()))
             }
             _ => {
-                panic!("Not supported yet!")
+                panic!("Source type not supported yet!")
             }
         };
 

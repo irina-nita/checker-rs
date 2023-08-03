@@ -23,4 +23,5 @@ tokio = { version = "1", features = ["full"] }
 sanitize-filename = "0.4.0"
 serde_json = "1.0.59"
 file_diff = "1.0.0"
+erased-serde = "0.3.28"
 

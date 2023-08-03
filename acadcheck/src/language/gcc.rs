@@ -1,11 +1,12 @@
-#![allow(unreachable_patterns)]
-
+//! GCC implementation as Compiler with support for C, C++, D and Go.
 use std::ffi::OsString;
 
+use super::Compiler;
+
+/// Most common languages supported by GCC.
 #[non_exhaustive]
 #[derive(Debug)]
 #[cfg_attr(feature = "use-serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "use-serde", serde(rename = "gcc_language"))]
 pub enum SupportedGccLanguage {
     #[cfg_attr(feature = "use-serde", serde(rename = "c"))]
     C,
@@ -20,11 +21,30 @@ pub enum SupportedGccLanguage {
 #[derive(Debug)]
 #[cfg_attr(feature = "use-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Gcc {
-    #[cfg_attr(feature = "use-serde", serde(rename = "gcc.language"))]
-    pub language: SupportedGccLanguage,
+    language: SupportedGccLanguage,
 }
 
-impl crate::language::LanguageProcessor for Gcc {}
+impl Gcc {
+    pub fn new(language: SupportedGccLanguage) -> Self {
+        Self { language }
+    }
+}
+
+impl crate::language::LanguageProcessor for Gcc {
+    fn run(
+        &self,
+        args: Option<Vec<std::ffi::OsString>>,
+        source: crate::solution::Source,
+        exec: Option<std::path::PathBuf>,
+    ) -> Result<Vec<std::ffi::OsString>, crate::language::Error> {
+        if exec == None {
+            return Err(crate::language::Error::CompilationFailed(format!(
+                "No path for the executable provided."
+            )));
+        }
+        self.run_compiled(args, &source, exec.unwrap())
+    }
+}
 
 impl crate::language::Compiler for Gcc {
     fn run_compiled<S, I>(
@@ -43,18 +63,16 @@ impl crate::language::Compiler for Gcc {
             crate::solution::Source::Directory(dir) => {
                 std::ffi::OsString::from(format!("{}/*", dir.to_str().unwrap()))
             }
-            crate::solution::Source::DirectoryRegex { dir, regex } => {
-                std::ffi::OsString::from(format!("{}/{}", dir.to_str().unwrap(), regex.as_str()))
+            crate::solution::Source::Regex { regex } => {
+                std::ffi::OsString::from(format!("{}", regex.as_str()))
             }
             _ => {
-                panic!("Not supported yet!")
+                panic!("Source type not supported yet!")
             }
         };
 
         // Destination file (executable).
         let dest = exec.to_str().unwrap();
-
-        println!("{:?}", source);
 
         // Exec name of the compiler.
         let exec_without_path = match &self.language {

@@ -3,22 +3,16 @@
 /// `Solution` is defined by the language processor used and the path to the
 /// file or directory that contains it.
 #[derive(Debug)]
-pub struct Solution<L>
-where
-    L: crate::language::LanguageProcessor,
-{
+pub struct Solution {
     /// Language processor used to run the solution.
-    pub processor: L,
+    pub processor: Box<dyn crate::language::LanguageProcessor>,
 
     /// Path to the file or directory where the solution is stored.
     pub source: Source,
 }
 
-impl<L> Solution<L>
-where
-    L: crate::language::LanguageProcessor,
-{
-    pub fn new(processor: L, source: Source) -> Self {
+impl Solution {
+    pub fn new(processor: Box<dyn crate::language::LanguageProcessor>, source: Source) -> Self {
         Self { processor, source }
     }
 }
@@ -30,13 +24,12 @@ where
 #[non_exhaustive]
 pub enum Source {
     /// A single source file.
+    #[cfg_attr(feature = "use-serde", serde(rename = "file"))]
     File(std::path::PathBuf),
     /// A directory that contains only the source files.
+    #[cfg_attr(feature = "use-serde", serde(rename = "dir"))]
     Directory(std::path::PathBuf),
     /// A directory that may contain other files we want to omit.
-    DirectoryRegex {
-        dir: std::path::PathBuf,
-        regex: String,
-    },
-    None,
+    #[cfg_attr(feature = "use-serde", serde(rename = "regex"))]
+    Regex { regex: String },
 }
