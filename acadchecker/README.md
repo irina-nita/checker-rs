@@ -1,26 +1,3 @@
-# acadcheck, acadchecker
-
-`acadcheck` is a simple to use, flexible library for building checkers used
-in programming contests or homeworks. This crate is meant to act as a base,
-avoiding the need of writing different scripts from scratch for different
-types of usage.
-
-# __Installation__
-
-```toml
-[dependencies]
-acadcheck = "0.1.6"
-```
-
-# __Features__
-
-* `serde` for serialisation of outputs and errors.
-
-```toml
-acadnet = { version = "0.1.6", features = ["use-serde"] }
-```
-------------------------------------------------------
-
  `acadchecker` is a CLI tool for building checkers used in programming contests or homeworks.
  The checker is configured from a json file.
  
@@ -83,4 +60,5 @@ acadnet = { version = "0.1.6", features = ["use-serde"] }
  }
  
  ```
+ 
  

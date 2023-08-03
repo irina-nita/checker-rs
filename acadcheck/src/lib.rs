@@ -7,20 +7,21 @@
 //!
 //! ```toml
 //! [dependencies]
-//! acadnet = "0.1.0"
+//! acadcheck = "0.1.7"
 //! ```
 //!
 //! # __Features__
 //!
-//! * `serde` for serialisation of outputs and errors.
+//! * `use-serde` for serialisation of tests output and checker configuration.
 //!
 //! ```toml
-//! acadnet = { version = "0.1.0", features = ["serde"] }
+//! acadcheck = { version = "0.1.7", features = ["use-serde"] }
 //! ```
 #![deny(clippy::undocumented_unsafe_blocks)]
 #![deny(clippy::panicking_unwrap)]
 #![deny(clippy::serde_api_misuse)]
-#![feature(marker_trait_attr)]
+// #![feature(marker_trait_attr)]
+#![allow(unreachable_patterns)]
 #![allow(dead_code)]
 
 extern crate regex;
@@ -37,5 +38,3 @@ pub mod checker;
 pub mod language;
 pub mod solution;
 pub(crate) mod util;
-pub use checker::tests::Error as TestError;
-pub use checker::tests::Output as TestOutput;

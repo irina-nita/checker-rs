@@ -1,11 +1,11 @@
 //! Traits, structs and helpers related for defining language processors.
 
 pub mod gcc;
+pub mod make;
 pub mod python;
 
 /// Errors regarding the language processor used during compiling or
 /// interpreting.
-#[cfg_attr(feature = "use-serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
 pub enum Error {
@@ -20,12 +20,15 @@ pub enum Error {
     MakefileBuildFailed(String),
 }
 
-/// Marker trait for language processors such as compilers or interpreters.
-/// (Marker traits are an experimental feature and require a nightly
-/// toolchain.)
-#[marker]
-pub trait LanguageProcessor: std::fmt::Debug {}
-
+/// Trait for language processors such as compilers or interpreters.
+pub trait LanguageProcessor: std::fmt::Debug {
+    fn run(
+        &self,
+        args: Option<Vec<std::ffi::OsString>>,
+        source: crate::solution::Source,
+        exec: Option<std::path::PathBuf>,
+    ) -> Result<Vec<std::ffi::OsString>, crate::language::Error>;
+}
 /// Compiler trait for Language Processors.
 pub trait Compiler: LanguageProcessor {
     /// Compiling a program. Returns the error of the compilation.
@@ -58,12 +61,11 @@ pub trait Interpreter: LanguageProcessor {
 
 /// Makefiles could be considered as a form of "language processors". It depends
 /// on the use case. Each makefile should have at least a rule for "run".
-pub trait Makefile<S>: LanguageProcessor
-where
-    S: AsRef<std::ffi::OsStr>,
-{
+pub trait Makefile: LanguageProcessor {
     /// Returns the command that acts as a rule for run.
     /// If a build was required before-hand, the implementation should propagate
     /// the error as [`language::Error`](crate::language::Error).
-    fn run(&self, target: Option<S>) -> Result<Vec<std::ffi::OsString>, crate::language::Error>;
+    fn run<S>(&self, target: Option<S>) -> Result<Vec<std::ffi::OsString>, crate::language::Error>
+    where
+        S: AsRef<std::ffi::OsStr>;
 }

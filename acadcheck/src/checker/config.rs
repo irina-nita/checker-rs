@@ -1,21 +1,24 @@
-use file_diff::diff_files;
+//! Defines the configuration of a checker.
 
+use std::io::{Read, Seek};
 #[derive(std::fmt::Debug)]
 #[cfg_attr(feature = "use-serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct CheckerConfig<I, O>
+pub struct CheckerConfig<I, O, T>
 where
     I: std::fmt::Debug + Eq + std::hash::Hash,
-    O: std::fmt::Debug + PartialEq<O>,
+    O: std::fmt::Debug + crate::checker::config::PartialEq<O> + std::cmp::PartialEq,
+    T: IntoIterator<Item = MonitorType>,
 {
-    pub monitor_type: MonitorType,
+    pub monitors: T,
     pub output_type: OutputType,
-    pub in_refs: std::collections::HashMap<I, O>,
+    pub in_refs: std::collections::BTreeMap<usize, (I, O)>,
 }
 
-impl<I, O> CheckerConfig<I, O>
+impl<I, O, T> CheckerConfig<I, O, T>
 where
     I: std::fmt::Debug + Eq + std::hash::Hash,
-    O: std::fmt::Debug + PartialEq<O>,
+    O: std::fmt::Debug + crate::checker::config::PartialEq<O> + std::cmp::PartialEq,
+    T: IntoIterator<Item = MonitorType>,
 {
     #[cfg(feature = "use-serde")]
     pub(crate) fn from_json_file<P>(_path: P) -> Result<Self, anyhow::Error>
@@ -32,12 +35,11 @@ where
 #[derive(std::fmt::Debug)]
 #[cfg_attr(feature = "use-serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum MonitorType {
-    /// Monitor as a command for which the argument will be the executable.
+    /// Stops the execution of the solution on limit reached.
     #[cfg_attr(feature = "use-serde", serde(rename = "time"))]
-    Time {
-        limit: std::time::Duration,
-    },
-    None,
+    Timeout { limit: std::time::Duration },
+    #[cfg_attr(feature = "use-serde", serde(rename = "memory.footprint"))]
+    TimeFootprint,
 }
 
 /// Output types
@@ -53,25 +55,55 @@ pub enum OutputType {
     None,
 }
 
-pub trait OutputPartialEq<Rhs = Self>
+/// Trait for equality comparisons.
+/// x.ceq(y) can __not__ be written x == y.
+pub trait PartialEq<Rhs = Self>
 where
     Rhs: Sized,
 {
-    fn ceq(&self, other: &Rhs) -> bool;
+    fn ceq(&self, other: &Rhs, self_inner: &mut String, other_inner: &mut String) -> bool;
 }
 
-impl OutputPartialEq<std::path::PathBuf> for std::path::PathBuf {
-    fn ceq(&self, other: &std::path::PathBuf) -> bool {
+impl PartialEq<std::path::PathBuf> for std::path::PathBuf {
+    fn ceq(
+        &self,
+        other: &std::path::PathBuf,
+        self_inner: &mut String,
+        other_inner: &mut String,
+    ) -> bool {
         let mut f = match std::fs::File::open(self) {
             Ok(o) => o,
-            Err(e) => {return false;}
+            Err(_) => {
+                return false;
+            }
         };
 
         let mut g = match std::fs::File::open(other) {
             Ok(o) => o,
-            Err(e) => {return false;}
+            Err(_) => {
+                return false;
+            }
         };
 
-        diff_files(&mut f, &mut g)
+        let val = file_diff::diff_files(&mut f, &mut g);
+
+        f.rewind().unwrap();
+        g.rewind().unwrap();
+
+        match g.read_to_string(other_inner) {
+            Ok(_) => {}
+            Err(_) => {
+                return false;
+            }
+        }
+
+        match f.read_to_string(self_inner) {
+            Ok(_) => {}
+            Err(_) => {
+                return false;
+            }
+        }
+
+        val
     }
 }

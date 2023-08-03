@@ -1,0 +1,20 @@
+[package]
+name = "acadchecker"
+description = "CLI tool for building checkers used in programming contests or homeworks."
+version = "0.1.0"
+authors = ["Irina Nita"]
+edition = "2021"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/acadnet-dev/checker-rs"
+
+[dependencies]
+acadcheck ={ version = "0.1.6", features = ["use-serde"]}
+serde = {version="1.0", features = ["derive"]}
+serde_json = "1.0.59"
+file_diff = "1.0.0"
+anyhow = "1.0"
+tempfile = "3"
+nix = {version = "0.26.2", features = ["user"]}
+psutil = "3.2.2"
+wait-timeout = "0.2.0"
