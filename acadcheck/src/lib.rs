@@ -23,6 +23,7 @@
 // #![feature(marker_trait_attr)]
 #![allow(unreachable_patterns)]
 #![allow(dead_code)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 extern crate regex;
 extern crate sanitize_filename;
@@ -34,6 +35,7 @@ extern crate serde;
 #[cfg(feature = "use-serde")]
 extern crate serde_json;
 
+pub mod acadchecker;
 pub mod checker;
 pub mod language;
 pub mod solution;

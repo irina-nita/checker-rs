@@ -1,13 +1,18 @@
 [package]
 name = "acadcheck"
 description = "A simple to use, flexible library for building checkers used in programming contests or homeworks."
-version = "0.1.7"
+version = "0.1.9"
 authors = ["Irina Nita"]
 edition = "2021"
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/acadnet-dev/checker-rs"
 exclude = [".rustfmt.toml"]
+
+[package.metadata.docs.rs]
+# To doc all features
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 # Enable serialization of checker output.
