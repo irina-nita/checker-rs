@@ -1,0 +1,26 @@
+[package]
+name = "core"
+authors = ["Irina Nita"]
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# acadnet-checker = {path = "../acadnet-checker"}
+notify = { version = "6.0.1" }
+futures = "0.3"
+tempfile = "3.5.0"
+log = "0.4.17"
+env_logger = "0.10.0"
+tokio = { version = "1.28.0", features = ["full"] }
+actix-web = "4.3.1"
+acadcheck ={ version = "0.1.9", features = ["use-serde"]}
+serde = {version = "1.0", features = ["derive"]}
+dotenv = "0.15.0"
+envy = "0.4"
+actix-multipart = "0.6.0"
+reqwest = "0.11.18"
+actix-form-data = "0.6.2"
+sanitize-filename = "0.4.0"
+serde_json = "1.0.59"
