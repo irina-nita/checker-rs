@@ -1,47 +1,26 @@
 #![allow(unused_imports)]
 #![allow(unused_variables)]
 
-// use std::{
-//     fmt::{format, Display},
-//     io::{Read, Seek, Write},
-//     os::fd::{FromRawFd, IntoRawFd},
-//     path::PathBuf,
-//     process::Stdio,
-// };
-
-// use actix_multipart::{form::tempfile::TempFile, form::text::Text, form::MultipartForm, Multipart};
-// use actix_web::{web, Error, HttpRequest, HttpResponse, HttpResponseBuilder};
-// use futures::{StreamExt, TryStreamExt};
-// use std::fs::File;
-// use tempfile::{NamedTempFile, TempDir};
-
-///
 pub fn run() -> actix_web::Scope {
-    actix_web::web::scope("/checker")
-        .route("/upload", actix_web::web::post().to(upload))
-        .route("/run", actix_web::web::post().to(checker_run))
+    actix_web::web::scope("/checker").route("/run", actix_web::web::post().to(checker_run))
 }
 
-///
+/// Response on upload.
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct UploadResponse {
     message: String,
 }
 
-/// Source,
+/// Source, ins and refs.
 #[derive(actix_multipart::form::MultipartForm)]
 struct UploadProblem {
     src: Vec<actix_multipart::form::tempfile::TempFile>,
     ins: Vec<actix_multipart::form::tempfile::TempFile>,
     refs: Vec<actix_multipart::form::tempfile::TempFile>,
+    cfg: actix_multipart::form::json::Json<acadcheck::acadchecker::config::Config>,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
-struct Info {
-    r#type: String,
-    bucket: String,
-}
-
+/// Get the filename of a tempfile.
 fn get_file_name(file: &actix_multipart::form::tempfile::TempFile) -> String {
     file.file_name
         .as_ref()
@@ -52,8 +31,8 @@ fn get_file_name(file: &actix_multipart::form::tempfile::TempFile) -> String {
 
 /// Upload inputs, refs and source.
 async fn upload(
-    req: actix_web::HttpRequest,
-    form: actix_multipart::form::MultipartForm<UploadProblem>,
+    req: &actix_web::HttpRequest,
+    form: &actix_multipart::form::MultipartForm<UploadProblem>,
 ) -> actix_web::HttpResponse {
     let mut error = None;
 
@@ -129,11 +108,14 @@ async fn upload(
     };
 }
 
-///
+/// Run the checker.
 async fn checker_run(
     req: actix_web::HttpRequest,
-    info: actix_web::web::Json<acadcheck::acadchecker::config::Config>,
+    form: actix_multipart::form::MultipartForm<UploadProblem>,
 ) -> actix_web::HttpResponse {
+    // Upload the files first.
+    upload(&req, &form).await;
+
     // Write to config file.
     let config_file = std::fs::File::create(req.app_data::<crate::Problem>().unwrap().cfg.clone());
 
@@ -145,8 +127,11 @@ async fn checker_run(
 
     use std::io::Write;
 
-    if let Err(err) = config_file.write_all(serde_json::to_string_pretty(&info).unwrap().as_bytes())
-    {
+    if let Err(err) = config_file.write_all(
+        serde_json::to_string_pretty(&form.cfg.0)
+            .unwrap()
+            .as_bytes(),
+    ) {
         return actix_web::HttpResponse::InternalServerError().json(err.to_string());
     }
 
