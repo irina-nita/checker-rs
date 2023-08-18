@@ -32,7 +32,7 @@ pub enum SupportedProcessor {
     },
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 pub struct Security {
     pub user: String,
     pub group: String,
