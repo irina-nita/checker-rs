@@ -1,7 +1,7 @@
 //! Python implementation as Interpreter with support for specific versions.
 
 use super::Interpreter;
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "use-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Python {
     version: Option<String>,

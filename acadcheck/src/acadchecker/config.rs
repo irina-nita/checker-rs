@@ -9,7 +9,7 @@ pub enum Output {
     None,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 #[non_exhaustive]
 pub enum SupportedProcessor {
     #[serde(rename = "gcc")]

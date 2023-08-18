@@ -1,5 +1,5 @@
-//! Implementation of a checker that is based on diff-ing the contestants' outputs and the expected outputs.
-//! This module was written for the [acadchecker](https://crates.io/crates/acadchecker) CLI tool.
+//! Implementation of a checker that is based on diff-ing the contestants'
+//! outputs and the expected outputs. This module was written for the [acadchecker](https://crates.io/crates/acadchecker) CLI tool.
 #![cfg(feature = "use-serde")]
 #![cfg_attr(docsrs, doc(cfg(feature = "use-serde")))]
 

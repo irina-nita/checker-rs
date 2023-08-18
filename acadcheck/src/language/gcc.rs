@@ -5,7 +5,7 @@ use super::Compiler;
 
 /// Most common languages supported by GCC.
 #[non_exhaustive]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "use-serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum SupportedGccLanguage {
     #[cfg_attr(feature = "use-serde", serde(rename = "c"))]
@@ -18,7 +18,7 @@ pub enum SupportedGccLanguage {
     Go,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "use-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Gcc {
     language: SupportedGccLanguage,

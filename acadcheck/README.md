@@ -9,13 +9,13 @@ types of usage.
 
 ```toml
 [dependencies]
-acadnet = "0.1.0"
+acadcheck = "0.1.0"
 ```
 
 # __Features__
 
-* `serde` for serialisation of outputs and errors.
+* `use-serde` for serialisation of outputs and errors.
 
 ```toml
-acadnet = { version = "0.1.0", features = ["serde"] }
+acadcheck = { version = "0.1.0", features = ["use-serde"] }
 ```
