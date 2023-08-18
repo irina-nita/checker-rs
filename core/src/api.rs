@@ -50,6 +50,7 @@ async fn upload(
             match std::fs::rename(path, new_path) {
                 Ok(_) => {}
                 Err(err) => {
+                    println!("Here!");
                     error = Some(err);
                 }
             }
@@ -70,6 +71,7 @@ async fn upload(
             match std::fs::rename(path, new_path) {
                 Ok(_) => {}
                 Err(err) => {
+                    println!("Here!2");
                     error = Some(err);
                 }
             }
@@ -90,6 +92,7 @@ async fn upload(
             match std::fs::rename(path, new_path) {
                 Ok(_) => {}
                 Err(err) => {
+                    println!("Here!3");
                     error = Some(err);
                 }
             }
@@ -120,6 +123,11 @@ async fn checker_run(
     let config_file = std::fs::File::create(req.app_data::<crate::Problem>().unwrap().cfg.clone());
 
     if let Err(err) = config_file {
+        println!(
+            "{:?}",
+            req.app_data::<crate::Problem>().unwrap().cfg.clone()
+        );
+        println!("Here!69");
         return actix_web::HttpResponse::InternalServerError().json(err.to_string());
     }
 
@@ -132,6 +140,7 @@ async fn checker_run(
             .unwrap()
             .as_bytes(),
     ) {
+        println!("Here!4");
         return actix_web::HttpResponse::InternalServerError().json(err.to_string());
     }
 
@@ -145,6 +154,7 @@ async fn checker_run(
     let output = cmd.output();
 
     if let Err(err) = output {
+        println!("Here!5");
         return actix_web::HttpResponse::InternalServerError().json(err.to_string());
     }
 

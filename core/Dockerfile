@@ -1,25 +1,43 @@
-FROM rust:1.67
+FROM rust:1.67-slim
 
-# Create new user.
-RUN groupadd -r restricted && useradd -r -g restricted sandbox
+SHELL ["/bin/bash", "-O", "extglob", "-c"]
+
+RUN apt update && \
+    apt-get install pkg-config && \
+    apt-get install libssl-dev && \
+    apt-get install setfacl
+
+# Create sandbox dirs.
+RUN mkdir -p /restricted/home/sandbox && \
+    mkdir -p /restricted/home/service/app && \
+    mkdir -p /restricted/home/sandbox/tests && \
+    mkdir -p /restricted/home/sandbox/tests/in && \
+    mkdir -p /restricted/home/sandbox/tests/ref && \
+    mkdir -p /restricted/home/sandbox/src && \
+    mkdir -p /restricted/home/sandbox/tests/out
+
+# Create new users.
+RUN groupadd -r restricted && \
+    useradd -r -g restricted sandbox && \
+    useradd -r -g restricted service
 
 # Restrict access to almost all
-RUN chmod 740 /bin /boot /dev /etc /media /mnt /opt /proc /root /run /sbin /srv /tmp /usr /var
+RUN chmod 755 !(*sys*|*proc*) && \
+    setfacl -RM sandbox:r /restricted/home/sandbox/tests/in && \
+    setfacl -RM sandbox:w /restricted/home/sandbox/tests/out && \
+    setfacl -RM sandbox:r /restricted/home/sandbox/tests/ref && \
+    setfacl -RM sandbox:rx /restricted/home/sandbox/src && \
+    chown -R service:restricted /restricted/home/service && \
+    chmod 740 /restricted/home/service
 
-RUN mkdir -p /home/sandbox
-RUN mkdir -p /home/sandbox/tests
-RUN mkdir -p /home/sandbox/tests/in
-RUN mkdir -p /home/sandbox/tests/ref
-RUN mkdir -p /home/sandbox/tests/out
-RUN mkdir -p /home/sandbox/src
-RUN touch /home/sandbox/script.sh
+RUN cargo install acadchecker
 
-RUN echo "echo "Hello"" > /home/sandbox/script.sh
+WORKDIR /restricted/home/service/app
 
-# Chown on /usr/src/core/submission
-RUN chown -R root:restricted /home/sandbox
+COPY . .
 
-# Make it read-only for restricted
-RUN chmod 740 /home/sandbox
+RUN cargo build --release
 
-CMD ["/home/sandbox/script.sh"]
+USER service
+
+CMD ["chroot", "/restricted", "./target/release/core"]

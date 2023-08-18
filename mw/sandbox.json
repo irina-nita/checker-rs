@@ -1,0 +1,9 @@
+{
+    "in": "/restricted/home/sandbox/in/",
+    "ref": "/restricted/home/sandbox/ref/",
+    "out": "/restricted/home/sandbox/out/",
+    "security": {
+        "user": "sandbox",
+        "group": "restricted"
+    }
+}
