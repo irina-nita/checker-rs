@@ -36,7 +36,7 @@
 //!       "1": [
 //!         "/binary/tests/in/001.in",
 //!         "/binary/tests/ref/001.ref"
-//!       ],
+//!       ]
 //!     }
 //!   },
 //!   "processor": {
