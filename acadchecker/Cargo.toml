@@ -9,7 +9,8 @@ readme = "README.md"
 repository = "https://github.com/acadnet-dev/checker-rs"
 
 [dependencies]
-acadcheck = { version = "0.1.11", features = ["use-serde"] }
+#acadcheck = { version = "0.1.11", features = ["use-serde"] }
+acadcheck = {path = "../acadcheck", features = ["use-serde"]}
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.59"
 file_diff = "1.0.0"

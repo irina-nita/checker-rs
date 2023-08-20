@@ -3,7 +3,7 @@
     "ref": "/restricted/home/sandbox/tests/ref/",
     "out": "/restricted/home/sandbox/tests/out/",
     "cfg": "/restricted/home/sandbox",
-    "src": "/restricted/home/sandbox/src/",
+    "src": "/restricted/home/sandbox/",
     "security": {
         "user": "sandbox",
         "group": "restricted"

@@ -336,7 +336,7 @@ async fn submission_run(
                         )),
                         PathBuf::from(format!(
                             "{}{}",
-                            sandbox_config.r#in.to_str().unwrap(),
+                            sandbox_config.r#ref.to_str().unwrap(),
                             v.1.as_ref()
                                 .unwrap()
                                 .path()
@@ -423,7 +423,7 @@ async fn submission_run(
 
     let sandbox = crate::sandbox::SandboxedChecker::new(
         "sandbox:latest",
-        vec!["cat", filename.as_str()],
+        vec!["acadchecker", "--config", filename.as_str()],
         sandbox_config.into_inner(),
     );
 
@@ -433,8 +433,11 @@ async fn submission_run(
         ins.push(f.1 .1.unwrap());
         refs.push(f.1 .0.unwrap());
     }
+    
+    println!("{:?}", config);
 
     let mut sol = form.into_inner().solution.file;
+    
 
     sandbox
         .run_once(
