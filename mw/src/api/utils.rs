@@ -1,15 +1,26 @@
 #![allow(dead_code)]
 
-use std::path::{Path, PathBuf};
+use std::{
+    fs::File,
+    io::Read,
+    path::{Path, PathBuf},
+    str::from_utf8,
+};
 
 use acadcheck::language::{gcc::Gcc, make::Makefile};
-use shiplift::Docker;
+use futures_util::{AsyncWriteExt, StreamExt, TryStreamExt};
+use shiplift::{
+    builder::ContainerOptionsBuilder, tty::TtyChunk, ContainerOptions, Docker, Exec,
+    ExecContainerOptions,
+};
 
 pub(crate) const BUCKET_NAME: &'static str = "acadnet";
 pub(crate) const TESTS_ARCHIVE: &'static str = "tests.zip";
 pub(crate) const PROVIDER_NAME: &'static str = "CustomEnvironment";
 pub(crate) const IN_REGEX: &'static str = "in/[0-9][0-9][0-9].in";
 pub(crate) const REF_REGEX: &'static str = "ref/[0-9][0-9][0-9].ref";
+pub(crate) const IMAGE: &'static str = "core";
+pub(crate) const URL: &'static str = "http://0.0.0.0:3000/checker/run";
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub(crate) struct Response {
@@ -98,24 +109,7 @@ pub(crate) struct SandboxConfig {
     pub(crate) r#in: PathBuf,
     pub(crate) r#ref: PathBuf,
     pub(crate) out: PathBuf,
+    pub(crate) cfg: PathBuf,
+    pub(crate) src: PathBuf,
     pub(crate) security: acadcheck::acadchecker::config::Security,
-}
-
-pub trait Sandbox {
-    fn spawn() -> anyhow::Result<()>;
-
-    fn run() -> anyhow::Result<()>;
-}
-
-pub struct DockerDaemon();
-
-impl Sandbox for DockerDaemon {
-    fn spawn() -> anyhow::Result<()> {
-        shiplift::Container::new(&Docker::default(), "ubuntu:latest");
-        Ok(())
-    }
-
-    fn run() -> anyhow::Result<()> {
-        todo!()
-    }
 }

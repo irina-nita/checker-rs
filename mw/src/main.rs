@@ -5,12 +5,15 @@
 use std::{fs::File, io::Read, path::PathBuf};
 
 use actix_web::{self, App, HttpServer};
-use api::utils::{DockerDaemon, Sandbox, SandboxConfig};
+use api::utils::SandboxConfig;
+use api::utils::*;
 use futures_util::{StreamExt, TryStreamExt};
 use serde::Deserialize;
 use shiplift::{ContainerOptions, Docker};
 
 pub mod api;
+
+pub mod sandbox;
 
 /// Cofniguration of port and host.
 #[derive(Debug, Deserialize)]
@@ -30,25 +33,9 @@ pub struct AWSConfig {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let docker = Docker::new();
-    let image = "python:3";
+    //let client = reqwest::Client::new();
+    //client.post::<String>(URL.to_string()).send().await.unwrap();
 
-    let mut res = docker
-        .images()
-        .pull(&shiplift::PullOptions::builder().image(image).build())
-        .next()
-        .await
-        .unwrap()
-        .unwrap();
-
-    // match docker
-    //     .containers()
-    //     .create(&ContainerOptions::builder(image.as_ref()).build())
-    //     .await
-    // {
-    //     Ok(info) => println!("{:?}", info),
-    //     Err(e) => eprintln!("Error: {}", e),
-    // }
     // Get port and host env. variables.
     let config =
         envy::from_env::<Config>().expect("Please provide PORT, HOST and SANDBOX_CONFIG in .env");
@@ -68,14 +55,14 @@ async fn main() -> std::io::Result<()> {
     // Start service.
     HttpServer::new(move || {
         let sandbox_config = match serde_json::from_str::<SandboxConfig>(&c) {
-            Ok(s) => std::sync::Arc::new(s),
+            Ok(s) => s,
             Err(e) => {
                 panic!("{}", e.to_string());
             }
         };
 
         App::new()
-            .app_data(actix_web::web::Data::new(sandbox_config.clone()))
+            .app_data(actix_web::web::Data::new(sandbox_config))
             .service(api::run())
     })
     .bind((config.host, config.port))?

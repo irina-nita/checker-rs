@@ -49,9 +49,7 @@ pub enum MonitorType {
 pub enum OutputType {
     /// Monitor as a command for which the argument will be the executable.
     #[cfg_attr(feature = "use-serde", serde(rename = "scored"))]
-    Scored {
-        per_test: usize,
-    },
+    Scored { per_test: usize },
     #[cfg_attr(feature = "use-serde", serde(rename = "none"))]
     None,
 }
@@ -63,7 +61,8 @@ where
     Rhs: Sized,
 {
     /// Equality comparison between self and other.
-    /// self_inner and other_inner should be the string representations of the values that are being compared, needed for test output messages.
+    /// self_inner and other_inner should be the string representations of the
+    /// values that are being compared, needed for test output messages.
     fn ceq(&self, other: &Rhs, self_inner: &mut String, other_inner: &mut String) -> bool;
 }
 

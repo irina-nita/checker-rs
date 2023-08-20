@@ -4,5 +4,7 @@ members = [
     "acadcheck",
     "core",
     "acadchecker",
-    "mw"
+    "mw",
+    "tests"
 ]
+

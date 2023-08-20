@@ -74,20 +74,24 @@ impl crate::language::Compiler for Gcc {
         // Destination file (executable).
         let dest = exec.to_str().unwrap();
 
-        // Exec name of the compiler.
-        let exec_without_path = match &self.language {
-            crate::language::gcc::SupportedGccLanguage::C => {
-                std::ffi::OsString::from(format!("gcc"))
-            }
-            crate::language::gcc::SupportedGccLanguage::Cpp => {
-                std::ffi::OsString::from(format!("g++"))
-            }
-            crate::language::gcc::SupportedGccLanguage::D => {
-                std::ffi::OsString::from(format!("gdc"))
-            }
-            crate::language::gcc::SupportedGccLanguage::Go => {
-                std::ffi::OsString::from(format!("gccgo"))
-            }
+        // Exec name of the compiler and lang.
+        let (exec_without_path, lang) = match &self.language {
+            crate::language::gcc::SupportedGccLanguage::C => (
+                std::ffi::OsString::from(format!("gcc")),
+                std::ffi::OsString::from(format!("c")),
+            ),
+            crate::language::gcc::SupportedGccLanguage::Cpp => (
+                std::ffi::OsString::from(format!("g++")),
+                std::ffi::OsString::from(format!("c++")),
+            ),
+            crate::language::gcc::SupportedGccLanguage::D => (
+                std::ffi::OsString::from(format!("gdc")),
+                std::ffi::OsString::from(format!("d")),
+            ),
+            crate::language::gcc::SupportedGccLanguage::Go => (
+                std::ffi::OsString::from(format!("gccgo")),
+                std::ffi::OsString::from(format!("go")),
+            ),
             _ => {
                 panic!("Not supported yet!")
             }
@@ -102,6 +106,8 @@ impl crate::language::Compiler for Gcc {
         };
 
         let compile_command = compile_command
+            .arg("-x")
+            .arg(lang)
             .arg(source)
             .arg("-o")
             .arg(dest)

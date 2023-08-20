@@ -2,10 +2,11 @@ FROM rust:1.67-slim
 
 SHELL ["/bin/bash", "-O", "extglob", "-c"]
 
-RUN apt update && \
-    apt-get install pkg-config && \
-    apt-get install libssl-dev && \
-    apt-get install setfacl
+EXPOSE 3000
+
+RUN apt update -y && \
+    apt-get install pkg-config -y && \
+    apt-get install libssl-dev -y
 
 # Create sandbox dirs.
 RUN mkdir -p /restricted/home/sandbox && \
@@ -14,30 +15,31 @@ RUN mkdir -p /restricted/home/sandbox && \
     mkdir -p /restricted/home/sandbox/tests/in && \
     mkdir -p /restricted/home/sandbox/tests/ref && \
     mkdir -p /restricted/home/sandbox/src && \
-    mkdir -p /restricted/home/sandbox/tests/out
+    mkdir -p /restricted/home/sandbox/tests/out && \
+    touch /restricted/home/sandbox/config.json
 
 # Create new users.
 RUN groupadd -r restricted && \
     useradd -r -g restricted sandbox && \
     useradd -r -g restricted service
 
-# Restrict access to almost all
-RUN chmod 755 !(*sys*|*proc*) && \
-    setfacl -RM sandbox:r /restricted/home/sandbox/tests/in && \
-    setfacl -RM sandbox:w /restricted/home/sandbox/tests/out && \
-    setfacl -RM sandbox:r /restricted/home/sandbox/tests/ref && \
-    setfacl -RM sandbox:rx /restricted/home/sandbox/src && \
-    chown -R service:restricted /restricted/home/service && \
-    chmod 740 /restricted/home/service
+# TODO: Restrict access to almost all
 
 RUN cargo install acadchecker
 
-WORKDIR /restricted/home/service/app
+WORKDIR /restricted/home/service/core
 
 COPY . .
 
-RUN cargo build --release
+ENV HOST="0.0.0.0"
+ENV PORT=3000
 
-USER service
+ENV __PROBLEM_INS="/restricted/home/sandbox/tests/in"
+ENV __PROBLEM_REFS="/restricted/home/sandbox/tests/ref"
+ENV __PROBLEM_OUT="/restricted/home/sandbox/tests/out"
+ENV __PROBLEM_SRC="/restricted/home/sandbox/src"
+ENV __PROBLEM_CFG="/restricted/home/sandbox/config.json"
 
-CMD ["chroot", "/restricted", "./target/release/core"]
+RUN cargo install --path .
+
+CMD ["core"]

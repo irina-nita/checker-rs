@@ -13,6 +13,7 @@ use std::{
 use acadcheck::{
     acadchecker::config::SupportedProcessor, checker::MonitorType, language::gcc::Gcc,
 };
+
 use actix_web::{
     trace,
     web::{self, Data},
@@ -21,6 +22,8 @@ use actix_web::{
 use aws_config::imds::client;
 use aws_sdk_s3::{Client, Region};
 use futures::{StreamExt, TryStreamExt};
+use reqwest::Method;
+use shiplift::Docker;
 use std::fs::File;
 use tempfile::NamedTempFile;
 
@@ -50,7 +53,7 @@ pub fn run() -> actix_web::Scope {
         .credentials_provider(cred)
         .region(region);
     let aws_config = builder.build();
-    let client = std::sync::Arc::new(aws_sdk_s3::Client::from_conf(aws_config));
+    let client = aws_sdk_s3::Client::from_conf(aws_config);
 
     actix_web::web::scope("/submission")
         .app_data(actix_web::web::Data::new(client))
@@ -63,7 +66,7 @@ async fn submission_run(
     form: actix_multipart::form::MultipartForm<UploadSolution>,
 ) -> actix_web::HttpResponse {
     // Get AWS Client from app data.
-    let client: Data<Arc<Client>> = match req.app_data::<web::Data<Arc<Client>>>() {
+    let client: Data<Client> = match req.app_data::<web::Data<Client>>() {
         Some(c) => c.clone(),
         None => {
             return HttpResponse::InternalServerError().json(Response {
@@ -73,15 +76,14 @@ async fn submission_run(
     };
 
     // Get SandboxConfig.
-    let sandbox_config: Data<Arc<SandboxConfig>> =
-        match req.app_data::<web::Data<Arc<SandboxConfig>>>() {
-            Some(s) => s.clone(),
-            None => {
-                return HttpResponse::InternalServerError().json(Response {
-                    message: "Sandbox Configuration not found. Can not run the checker".to_string(),
-                });
-            }
-        };
+    let sandbox_config: Data<SandboxConfig> = match req.app_data::<web::Data<SandboxConfig>>() {
+        Some(s) => s.clone(),
+        None => {
+            return HttpResponse::InternalServerError().json(Response {
+                message: "Sandbox Configuration not found. Can not run the checker".to_string(),
+            });
+        }
+    };
 
     // Save tests archive in file.
     let mut tmp = match tempfile::tempfile() {
@@ -138,6 +140,8 @@ async fn submission_run(
             });
         }
     };
+
+    let x = String::new();
 
     // All tests should have these files in the following format:
     // .
@@ -201,7 +205,7 @@ async fn submission_run(
             }
         };
 
-        if in_reg.is_match(&file.name()) {
+        if in_reg.is_match(file.name()) {
             if file.name().len() > 6 {
                 println!("{}", &file.name()[3..6]);
             }
@@ -250,7 +254,7 @@ async fn submission_run(
                 p.0 = Some(f);
             } else {
                 in_refs_files.insert(
-                    *&file.name()[3..6].to_string().parse::<usize>().unwrap(),
+                    file.name()[3..6].to_string().parse::<usize>().unwrap(),
                     (Some(f), None),
                 );
             }
@@ -349,7 +353,7 @@ async fn submission_run(
         })
         .collect::<std::collections::BTreeMap<usize, (PathBuf, PathBuf)>>();
 
-    // Finally, build config.
+    // Finally, build config and add to tempfile.
     let config = acadcheck::acadchecker::config::Config {
         checker: acadcheck::checker::CheckerConfig {
             monitors: {
@@ -362,15 +366,86 @@ async fn submission_run(
             in_refs,
         },
         processor: (&form.config.processor).into(),
-        solution: acadcheck::solution::Source::File(PathBuf::from(
-            form.solution.file_name.as_ref().unwrap(),
-        )),
+        solution: acadcheck::solution::Source::File(PathBuf::from(format!(
+            "{}{}",
+            sandbox_config.src.to_str().unwrap(),
+            form.solution
+                .file
+                .path()
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+        ))),
         out_dir: sandbox_config.out.clone(),
         security: Some(sandbox_config.security.clone()),
     };
 
-    println!("{:#?}", config);
-    return HttpResponse::Ok().json(Response {
+    // Tempfile to send to checker.
+    let mut config_json = match tempfile::NamedTempFile::new() {
+        Ok(f) => f,
+        Err(e) => {
+            return HttpResponse::InternalServerError().json(Response {
+                message: format!("Can't parse configuration for checker: {:?}", e.to_string()),
+            });
+        }
+    };
+
+    let buf = match serde_json::to_string_pretty(&config) {
+        Ok(j) => j,
+        Err(e) => {
+            return HttpResponse::InternalServerError().json(Response {
+                message: format!("Can't parse configuration for checker: {:?}", e.to_string()),
+            });
+        }
+    };
+
+    match config_json.write_all(buf.as_bytes()) {
+        Ok(_) => {}
+        Err(e) => {
+            return HttpResponse::InternalServerError().json(Response {
+                message: format!("Can't parse configuration for checker: {:?}", e.to_string()),
+            });
+        }
+    }
+
+    config_json.seek(std::io::SeekFrom::Start(0)).unwrap();
+    //let f = File::create("")
+    let filename = String::from(
+        config_json
+            .path()
+            .file_name()
+            .unwrap()
+            .clone()
+            .to_str()
+            .unwrap(),
+    );
+
+    let sandbox = crate::sandbox::SandboxedChecker::new(
+        "sandbox:latest",
+        vec!["cat", filename.as_str()],
+        sandbox_config.into_inner(),
+    );
+
+    let mut ins = vec![];
+    let mut refs = vec![];
+    for f in in_refs_files.into_iter() {
+        ins.push(f.1 .1.unwrap());
+        refs.push(f.1 .0.unwrap());
+    }
+
+    let mut sol = form.into_inner().solution.file;
+
+    sandbox
+        .run_once(
+            &Docker::new(),
+            &mut ins,
+            &mut sol,
+            &mut refs,
+            &mut config_json,
+        )
+        .await;
+    HttpResponse::Ok().json(Response {
         message: format!("Could not parse Refresh Token"),
-    });
+    })
 }
