@@ -1,10 +1,10 @@
 {
-    "image": "sandbox:latest",
+    "image": "irinanita/acadsandbox_cpp:0.1",
     "in": "/restricted/home/sandbox/tests/in/",
     "ref": "/restricted/home/sandbox/tests/ref/",
     "out": "/restricted/home/sandbox/tests/out/",
     "cfg": "/restricted/home/sandbox/",
-    "src": "/restricted/home/sandbox/",
+    "src": "/restricted/home/sandbox/src/",
     "security": {
         "user": "sandbox",
         "group": "restricted"

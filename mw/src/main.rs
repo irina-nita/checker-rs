@@ -76,7 +76,7 @@ async fn main() -> std::io::Result<()> {
 
     // Logger.
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
-    
+
     // Start service.
     HttpServer::new(move || {
         App::new()

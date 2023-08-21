@@ -2,13 +2,17 @@
 pub mod tests;
 
 use async_trait::async_trait;
-use futures_util::TryStreamExt;
-use shiplift::{ContainerOptions, RmContainerOptions};
+use futures_util::{StreamExt, TryStreamExt};
+use shiplift::{ContainerOptions, PullOptions, RmContainerOptions};
 use std::{
     io::{Read, Seek},
     path::PathBuf,
 };
 use tempfile::NamedTempFile;
+
+pub(crate) const MEMORY_LIMIT: u64 = 300 * 1024 * 1024;
+pub(crate) const MEMORY_SWAP: i64 = 600 * 1024 * 1024;
+pub(crate) const NANO_CPUS: u64 = 500 * 1000 * 1000;
 
 /// Trait for orchestrators that deal with creating and destroying sandboxes.
 #[async_trait]
@@ -163,14 +167,19 @@ impl<'orch> Orchestrator<'orch> for shiplift::Docker {
         image: &str,
         command: Vec<&str>,
     ) -> anyhow::Result<Self::SandboxType> {
-        // TODO: Try to pull image first.
-
+        // TODO: Add namespace.
         // Spawn docker container from image.
+
         let id = match self
             .containers()
             .create(
                 &ContainerOptions::builder(image)
-                    .cmd(command)
+                    .cmd(command.clone())
+                    .memory(MEMORY_LIMIT)
+                    .memory_swap(MEMORY_SWAP)
+                    .nano_cpus(NANO_CPUS)
+                    .privileged(false)
+                    .attach_stdin(false)
                     .attach_stderr(true)
                     .attach_stdout(true)
                     .build(),
@@ -179,6 +188,30 @@ impl<'orch> Orchestrator<'orch> for shiplift::Docker {
         {
             Ok(info) => info.id,
             Err(e) => {
+                // Fault 404 means the image is not found most of the times.
+                if let shiplift::Error::Fault {
+                    code: http::status::StatusCode::NOT_FOUND,
+                    ..
+                } = e
+                {
+                    // Try to pull image & run again.
+                    let mut stream = self
+                        .images()
+                        .pull(&PullOptions::builder().image(image).build());
+                    if let Some(res) = stream.next().await {
+                        match res {
+                            Ok(_) => {
+                                return self.build_sandbox_from(image, command).await;
+                            }
+                            Err(e) => {
+                                return Err(anyhow::format_err!(
+                                    "Could not even pull image.{:?}",
+                                    e.to_string()
+                                ));
+                            }
+                        }
+                    }
+                }
                 return Err(anyhow::format_err!("{:?}", e.to_string()));
             }
         };

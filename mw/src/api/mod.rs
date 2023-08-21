@@ -55,28 +55,23 @@ async fn healthcheck_aws(req: actix_web::HttpRequest) -> actix_web::HttpResponse
         }
     };
     match client.list_objects_v2().bucket(BUCKET_NAME).send().await {
-        Ok(objects) => {
-            HttpResponse::Ok().json(format!("There are {} objects in bucket.",objects.key_count()))
-        }
-        Err(e) => {
-            HttpResponse::ExpectationFailed().json(Response {
-                message: format!("Did not pass healtcheck: {}",e.to_string())
-            })
-        }
+        Ok(objects) => HttpResponse::Ok().json(format!(
+            "There are {} objects in bucket.",
+            objects.key_count()
+        )),
+        Err(e) => HttpResponse::ExpectationFailed().json(Response {
+            message: format!("Did not pass healtcheck: {}", e.to_string()),
+        }),
     }
 }
 
 async fn healthcheck_docker(req: actix_web::HttpRequest) -> actix_web::HttpResponse {
     let docker = Docker::new();
     match docker.info().await {
-        Ok(info) => {
-            HttpResponse::Ok().json(info)
-        },
-        Err(e) => {
-            HttpResponse::ExpectationFailed().json(Response {
-                message: format!("Did not pass healtcheck: {}",e.to_string())
-            })
-        }
+        Ok(info) => HttpResponse::Ok().json(info),
+        Err(e) => HttpResponse::ExpectationFailed().json(Response {
+            message: format!("Did not pass healtcheck: {}", e.to_string()),
+        }),
     }
 }
 
@@ -84,8 +79,7 @@ async fn healthcheck_docker(req: actix_web::HttpRequest) -> actix_web::HttpRespo
 ///                          SUBMISSION SCOPE
 /// ----------------------------------------------------------------------------
 pub fn run() -> actix_web::Scope {
-    actix_web::web::scope("/submission")
-        .route("/run", actix_web::web::post().to(submission_run))
+    actix_web::web::scope("/submission").route("/run", actix_web::web::post().to(submission_run))
 }
 
 /// Run a submission.
