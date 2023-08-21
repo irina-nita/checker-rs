@@ -1,9 +1,0 @@
-[env]
-"HOST"="0.0.0.0"
-"PORT"="3000"
-
-"__PROBLEM_INS"="./sandbox/in"
-"__PROBLEM_REFS"="./sandbox/ref"
-"__PROBLEM_OUT"="./sandbox/out"
-"__PROBLEM_SRC"="./sandbox/src"
-"__PROBLEM_CFG"="./sandbox/config_gcc.json"
