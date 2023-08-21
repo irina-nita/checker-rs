@@ -3,6 +3,7 @@
 #![allow(dead_code)]
 
 use std::{
+    collections::BTreeMap,
     fmt::{format, Display},
     io::{Read, Seek, Write},
     os::fd::AsFd,
@@ -26,6 +27,7 @@ use reqwest::Method;
 use shiplift::Docker;
 use std::fs::File;
 use tempfile::NamedTempFile;
+use zip::read::ZipFile;
 
 use crate::AWSConfig;
 
@@ -33,35 +35,57 @@ pub mod utils;
 
 use utils::*;
 
-pub fn run() -> actix_web::Scope {
-    // Load AWS Configuration as
-    let aws_conf = envy::from_env::<AWSConfig>()
-        .expect("Please provide AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and S3_SECRET_KEY");
-
-    let cred = aws_sdk_s3::Credentials::new(
-        &aws_conf.aws_access_key_id,
-        &aws_conf.aws_secret_access_key,
-        None,
-        None,
-        PROVIDER_NAME,
-    );
-
-    let region = aws_sdk_s3::Region::new("eu-west-2".to_string());
-
-    // Setup builder.
-    let builder = aws_sdk_s3::config::Builder::new()
-        .credentials_provider(cred)
-        .region(region);
-    let aws_config = builder.build();
-    let client = aws_sdk_s3::Client::from_conf(aws_config);
-
-    actix_web::web::scope("/submission")
-        .app_data(actix_web::web::Data::new(client))
-        .route("/run", actix_web::web::post().to(submission_run))
+/// ----------------------------------------------------------------------------
+///                          HEALTHCHECK SCOPE
+/// ----------------------------------------------------------------------------
+pub fn health() -> actix_web::Scope {
+    actix_web::web::scope("/healthcheck")
+        .route("/aws", actix_web::web::get().to(healthcheck_aws))
+        .route("/docker", actix_web::web::get().to(healthcheck_docker))
 }
 
-pub fn write_tests() {
+async fn healthcheck_aws(req: actix_web::HttpRequest) -> actix_web::HttpResponse {
+    // Get AWS Client from app data.
+    let client: Data<Client> = match req.app_data::<web::Data<Client>>() {
+        Some(c) => c.clone(),
+        None => {
+            return HttpResponse::InternalServerError().json(Response {
+                message: "AWS Client not provided.".to_string(),
+            });
+        }
+    };
+    match client.list_objects_v2().bucket(BUCKET_NAME).send().await {
+        Ok(objects) => {
+            HttpResponse::Ok().json(format!("There are {} objects in bucket.",objects.key_count()))
+        }
+        Err(e) => {
+            HttpResponse::ExpectationFailed().json(Response {
+                message: format!("Did not pass healtcheck: {}",e.to_string())
+            })
+        }
+    }
+}
 
+async fn healthcheck_docker(req: actix_web::HttpRequest) -> actix_web::HttpResponse {
+    let docker = Docker::new();
+    match docker.info().await {
+        Ok(info) => {
+            HttpResponse::Ok().json(info)
+        },
+        Err(e) => {
+            HttpResponse::ExpectationFailed().json(Response {
+                message: format!("Did not pass healtcheck: {}",e.to_string())
+            })
+        }
+    }
+}
+
+/// ----------------------------------------------------------------------------
+///                          SUBMISSION SCOPE
+/// ----------------------------------------------------------------------------
+pub fn run() -> actix_web::Scope {
+    actix_web::web::scope("/submission")
+        .route("/run", actix_web::web::post().to(submission_run))
 }
 
 /// Run a submission.
@@ -90,6 +114,8 @@ async fn submission_run(
     };
 
     // Save tests archive in file.
+    // TODO: Use a global HashMap for tests archive and save it as a non-temporary file as the
+    // service is running.
     let mut tmp = match tempfile::tempfile() {
         Ok(t) => t,
         Err(e) => {
@@ -144,8 +170,6 @@ async fn submission_run(
             });
         }
     };
-
-    let x = String::new();
 
     // All tests should have these files in the following format:
     // .
@@ -209,6 +233,7 @@ async fn submission_run(
             }
         };
 
+        //If file is an input.
         if in_reg.is_match(file.name()) {
             let mut f = match tempfile::NamedTempFile::new_in(&in_dir) {
                 Ok(t) => t,
@@ -219,49 +244,18 @@ async fn submission_run(
                 }
             };
 
-            // Write to temp file the input.
-            let mut contents = String::new();
-            match file.read_to_string(&mut contents) {
-                Ok(_) => {}
-                Err(e) => {
-                    return HttpResponse::InternalServerError().json(Response {
-                        message: e.to_string(),
-                    });
-                }
+            // Write to temp file.
+            if let Err(e) = file.write_to(&mut f) {
+                return HttpResponse::InternalServerError().json(Response {
+                    message: e.to_string(),
+                });
             }
 
-            match f.write_all(contents.as_bytes()) {
-                Ok(_) => {}
-                Err(e) => {
-                    return HttpResponse::InternalServerError().json(Response {
-                        message: e.to_string(),
-                    });
-                }
-            }
-
-            // Move back the cursor.
-            match f.seek(std::io::SeekFrom::Start(0)) {
-                Ok(_) => {}
-                Err(e) => {
-                    return HttpResponse::InternalServerError().json(Response {
-                        message: e.to_string(),
-                    });
-                }
-            }
-
-            if let Some(p) =
-                in_refs_files.get_mut(&file.name()[3..6].to_string().parse::<usize>().unwrap())
-            {
-                p.0 = Some(f);
-            } else {
-                in_refs_files.insert(
-                    file.name()[3..6].to_string().parse::<usize>().unwrap(),
-                    (Some(f), None),
-                );
-            }
+            in_refs_files.insert_in(f, file.name()[3..6].to_string().parse::<usize>().unwrap());
         }
 
-        if ref_reg.is_match(&file.name()) {
+        //If file is a reference.
+        if ref_reg.is_match(file.name()) {
             let mut f = match tempfile::NamedTempFile::new_in(&ref_dir) {
                 Ok(t) => t,
                 Err(e) => {
@@ -271,46 +265,14 @@ async fn submission_run(
                 }
             };
 
-            // Write to temp file the ref.
-            let mut contents = String::new();
-            match file.read_to_string(&mut contents) {
-                Ok(_) => {}
-                Err(e) => {
-                    return HttpResponse::InternalServerError().json(Response {
-                        message: e.to_string(),
-                    });
-                }
+            // Write to temp file.
+            if let Err(e) = file.write_to(&mut f) {
+                return HttpResponse::InternalServerError().json(Response {
+                    message: e.to_string(),
+                });
             }
 
-            match f.write_all(contents.as_bytes()) {
-                Ok(_) => {}
-                Err(e) => {
-                    return HttpResponse::InternalServerError().json(Response {
-                        message: e.to_string(),
-                    });
-                }
-            }
-
-            // Move back the cursor.
-            match f.seek(std::io::SeekFrom::Start(0)) {
-                Ok(_) => {}
-                Err(e) => {
-                    return HttpResponse::InternalServerError().json(Response {
-                        message: e.to_string(),
-                    });
-                }
-            }
-
-            if let Some(p) =
-                in_refs_files.get_mut(&file.name()[4..7].to_string().parse::<usize>().unwrap())
-            {
-                p.1 = Some(f);
-            } else {
-                in_refs_files.insert(
-                    *&file.name()[3..6].to_string().parse::<usize>().unwrap(),
-                    (None, Some(f)),
-                );
-            }
+            in_refs_files.insert_ref(f, file.name()[4..7].to_string().parse::<usize>().unwrap());
         }
     }
 
@@ -351,7 +313,6 @@ async fn submission_run(
         })
         .collect::<std::collections::BTreeMap<usize, (PathBuf, PathBuf)>>();
 
-    //   let f = in_refs.get(&1).unwrap().1.to_str().unwrap().to_string();
     // Finally, build config and add to tempfile.
     let config = acadcheck::acadchecker::config::Config {
         checker: acadcheck::checker::CheckerConfig {
@@ -409,7 +370,6 @@ async fn submission_run(
     }
 
     config_json.seek(std::io::SeekFrom::Start(0)).unwrap();
-    //let f = File::create("")
     let filename = String::from(
         config_json
             .path()
@@ -421,18 +381,17 @@ async fn submission_run(
     );
 
     let sandbox = crate::sandbox::SandboxedChecker::new(
-        "sandbox:latest",
         vec!["acadchecker", "--config", filename.as_str()],
         sandbox_config.into_inner(),
     );
 
+    // Prepare parameters to parse to checker.
     let mut ins = vec![];
     let mut refs = vec![];
     for f in in_refs_files.into_iter() {
         ins.push(f.1 .1.unwrap());
         refs.push(f.1 .0.unwrap());
     }
-
     let mut sol = form.into_inner().solution.file;
 
     let res = sandbox

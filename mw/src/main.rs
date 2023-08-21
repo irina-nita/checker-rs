@@ -1,21 +1,19 @@
 //! Middleware for the acadnet checker.
 //!
-//! Can act as an example for using the [`acadnet-checker`] crate.
-
+//! Can act as an example for using the [`acadchecker`] package.
 use std::{fs::File, io::Read, path::PathBuf};
 
 use actix_web::{self, App, HttpServer};
-use api::utils::SandboxConfig;
-use api::utils::*;
+use api::utils::{SandboxConfig, PROVIDER_NAME};
+#[allow(unused_imports)]
 use futures_util::{StreamExt, TryStreamExt};
 use serde::Deserialize;
-use shiplift::{ContainerOptions, Docker};
 
 pub mod api;
 
 pub mod sandbox;
 
-/// Cofniguration of port and host.
+/// Config of port and host.
 #[derive(Debug, Deserialize)]
 struct Config {
     port: u16,
@@ -23,7 +21,7 @@ struct Config {
     sandbox_config: PathBuf,
 }
 
-/// Configuration of AWS access key configuration.
+/// Config of AWS access.
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct AWSConfig {
     aws_access_key_id: String,
@@ -33,9 +31,6 @@ pub struct AWSConfig {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    //let client = reqwest::Client::new();
-    //client.post::<String>(URL.to_string()).send().await.unwrap();
-
     // Get port and host env. variables.
     let config =
         envy::from_env::<Config>().expect("Please provide PORT, HOST and SANDBOX_CONFIG in .env");
@@ -52,18 +47,44 @@ async fn main() -> std::io::Result<()> {
         }
     }
 
+    let sandbox_config = match serde_json::from_str::<SandboxConfig>(&c) {
+        Ok(s) => s,
+        Err(e) => {
+            panic!("{}", e.to_string());
+        }
+    };
+    // Load AWS Configuration as
+    let aws_conf = envy::from_env::<AWSConfig>()
+        .expect("Please provide AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and S3_SECRET_KEY");
+
+    let cred = aws_sdk_s3::Credentials::new(
+        &aws_conf.aws_access_key_id,
+        &aws_conf.aws_secret_access_key,
+        None,
+        None,
+        PROVIDER_NAME,
+    );
+
+    let region = aws_sdk_s3::Region::new("eu-west-2".to_string());
+
+    // Setup builder.
+    let builder = aws_sdk_s3::config::Builder::new()
+        .credentials_provider(cred)
+        .region(region);
+    let aws_config = builder.build();
+    let client = aws_sdk_s3::Client::from_conf(aws_config);
+
+    // Logger.
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+    
     // Start service.
     HttpServer::new(move || {
-        let sandbox_config = match serde_json::from_str::<SandboxConfig>(&c) {
-            Ok(s) => s,
-            Err(e) => {
-                panic!("{}", e.to_string());
-            }
-        };
-
         App::new()
-            .app_data(actix_web::web::Data::new(sandbox_config))
+            .app_data(actix_web::web::Data::new(client.clone()))
+            .app_data(actix_web::web::Data::new(sandbox_config.clone()))
+            .wrap(tracing_actix_web::TracingLogger::default())
             .service(api::run())
+            .service(api::health())
     })
     .bind((config.host, config.port))?
     .run()

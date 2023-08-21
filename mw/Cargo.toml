@@ -30,4 +30,6 @@ regex = "1.9.1"
 tempdir = "0.3.7"
 serde_json = "1.0.59"
 async-trait = "0.1.73"
+env_logger = "0.9"
+tracing-actix-web = "0.7"
 

@@ -202,7 +202,6 @@ impl<'orch> Orchestrator<'orch> for shiplift::Docker {
 
 /// Sandbox that can run a checker.
 pub struct SandboxedChecker<'a> {
-    image: &'a str,
     command: Vec<&'a str>,
     config: std::sync::Arc<crate::api::utils::SandboxConfig>,
 }
@@ -210,15 +209,10 @@ pub struct SandboxedChecker<'a> {
 impl<'a> SandboxedChecker<'a> {
     /// Constructor for SandboxedChecker.
     pub(crate) fn new(
-        image: &'a str,
         command: Vec<&'a str>,
         config: std::sync::Arc<crate::api::utils::SandboxConfig>,
     ) -> Self {
-        Self {
-            image,
-            command,
-            config,
-        }
+        Self { command, config }
     }
 
     /// Run the checker once. Before drop, the orchestrator will try to destroy the sandbox.
@@ -235,7 +229,7 @@ impl<'a> SandboxedChecker<'a> {
         O: Orchestrator<'orch>,
     {
         let sandbox = match orchestrator
-            .build_sandbox_from(self.image, self.command)
+            .build_sandbox_from(self.config.image.as_str(), self.command)
             .await
         {
             Ok(s) => s,

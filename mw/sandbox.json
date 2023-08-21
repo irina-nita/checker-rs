@@ -1,4 +1,5 @@
 {
+    "image": "sandbox:latest",
     "in": "/restricted/home/sandbox/tests/in/",
     "ref": "/restricted/home/sandbox/tests/ref/",
     "out": "/restricted/home/sandbox/tests/out/",
