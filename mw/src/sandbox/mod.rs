@@ -1,6 +1,7 @@
 #[cfg(test)]
 pub mod tests;
 
+use anyhow::anyhow;
 use async_trait::async_trait;
 use futures_util::{StreamExt, TryStreamExt};
 use shiplift::{ContainerOptions, PullOptions, RmContainerOptions};
@@ -21,9 +22,6 @@ pub trait Orchestrator<'orch> {
     /// into.
     type SandboxType: Sandbox + Sync;
 
-    /// A way for the orchestrator to identify the instance of the sandbox.
-    type SandboxIdentifier;
-
     /// Build a sandbox from an image. Return the sandbox.
     async fn build_sandbox_from(
         &'orch self,
@@ -32,10 +30,7 @@ pub trait Orchestrator<'orch> {
     ) -> anyhow::Result<Self::SandboxType>;
 
     /// Destroy the sandbox. This is crucial if the sandbox can't exit properly on its own.
-    async fn destroy_sandbox(
-        &self,
-        sandbox_identifier: Self::SandboxIdentifier,
-    ) -> anyhow::Result<()>;
+    async fn destroy_sandbox(&self, sandbox_identifier: String) -> anyhow::Result<()>;
 }
 
 #[async_trait]
@@ -63,6 +58,9 @@ pub trait Sandbox {
 
     /// Run the checker inside the container and get output.
     async fn run_checker(&self) -> anyhow::Result<acadcheck::acadchecker::config::Output>;
+
+    /// Get identifier.
+    fn get_identifier(&self) -> String;
 }
 
 #[async_trait]
@@ -155,12 +153,15 @@ impl Sandbox for shiplift::Container<'_> {
             return Result::Ok(res);
         }
     }
+
+    fn get_identifier(&self) -> String {
+        self.id().to_string()
+    }
 }
 
 #[async_trait]
 impl<'orch> Orchestrator<'orch> for shiplift::Docker {
     type SandboxType = shiplift::Container<'orch>;
-    type SandboxIdentifier = String;
 
     async fn build_sandbox_from(
         &'orch self,
@@ -219,15 +220,38 @@ impl<'orch> Orchestrator<'orch> for shiplift::Docker {
         Ok(self.containers().get(&id))
     }
 
-    async fn destroy_sandbox(
-        &self,
-        sandbox_identifier: Self::SandboxIdentifier,
-    ) -> anyhow::Result<()> {
-        let c = self.containers().get(sandbox_identifier);
-        c.kill(None).await.unwrap();
-        c.remove(RmContainerOptions::builder().force(true).build())
+    async fn destroy_sandbox(&self, sandbox_identifier: String) -> anyhow::Result<()> {
+        let c = self.containers().get(sandbox_identifier.clone());
+        if let Ok(container_state) = c.inspect().await {
+            // If the container is still running for some reason.
+            if container_state.state.running {
+                // Try to stop it gracefully.
+                if c.stop(Some(std::time::Duration::from_secs(5)))
+                    .await
+                    .is_err()
+                {
+                    // If it can't, kill it.
+                    if let Err(e) = c.kill(None).await {
+                        return Err(anyhow::format_err!(
+                            "Container with id {} is going to sh*t with {}.",
+                            sandbox_identifier.as_str(),
+                            e.to_string()
+                        ));
+                    }
+                }
+            }
+        }
+
+        if let Err(e) = c
+            .remove(RmContainerOptions::builder().force(true).build())
             .await
-            .unwrap();
+        {
+            return Err(anyhow::format_err!(
+                "Container with id {} is going to sh*t with {}.",
+                sandbox_identifier.as_str(),
+                e.to_string()
+            ));
+        }
 
         Ok(())
     }
@@ -291,8 +315,13 @@ impl<'a> SandboxedChecker<'a> {
             return acadcheck::acadchecker::config::Output::Error(e.to_string());
         }
 
-        match sandbox.run_checker().await {
+        let output = match sandbox.run_checker().await {
             Ok(out) => out,
+            Err(e) => acadcheck::acadchecker::config::Output::Error(e.to_string()),
+        };
+
+        match orchestrator.destroy_sandbox(sandbox.get_identifier()).await {
+            Ok(_) => output,
             Err(e) => acadcheck::acadchecker::config::Output::Error(e.to_string()),
         }
     }

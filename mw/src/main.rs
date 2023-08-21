@@ -75,7 +75,7 @@ async fn main() -> std::io::Result<()> {
     let client = aws_sdk_s3::Client::from_conf(aws_config);
 
     // Logger.
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("debug"));
 
     // Start service.
     HttpServer::new(move || {

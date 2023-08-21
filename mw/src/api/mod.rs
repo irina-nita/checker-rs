@@ -388,14 +388,11 @@ async fn submission_run(
     }
     let mut sol = form.into_inner().solution.file;
 
+    let docker = Docker::new();
+
     let res = sandbox
-        .run_once(
-            &Docker::new(),
-            &mut refs,
-            &mut sol,
-            &mut ins,
-            &mut config_json,
-        )
+        .run_once(&docker, &mut refs, &mut sol, &mut ins, &mut config_json)
         .await;
+
     HttpResponse::Ok().json(res)
 }
