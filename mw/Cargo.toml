@@ -24,7 +24,7 @@ mime_guess = "2"
 aws-config = "0.6"
 aws-sdk-s3 = "0.6"
 shiplift = "0.7.0"
-acadcheck = { version = "0.1.11", features = ["use-serde"] }
+acadcheck = { version = "0.1.12", features = ["use-serde"] }
 zip = "0.6"
 regex = "1.9.1"
 tempdir = "0.3.7"

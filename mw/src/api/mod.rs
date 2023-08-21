@@ -60,6 +60,10 @@ pub fn run() -> actix_web::Scope {
         .route("/run", actix_web::web::post().to(submission_run))
 }
 
+pub fn write_tests() {
+
+}
+
 /// Run a submission.
 async fn submission_run(
     req: actix_web::HttpRequest,
@@ -206,9 +210,6 @@ async fn submission_run(
         };
 
         if in_reg.is_match(file.name()) {
-            if file.name().len() > 6 {
-                println!("{}", &file.name()[3..6]);
-            }
             let mut f = match tempfile::NamedTempFile::new_in(&in_dir) {
                 Ok(t) => t,
                 Err(e) => {
@@ -261,9 +262,6 @@ async fn submission_run(
         }
 
         if ref_reg.is_match(&file.name()) {
-            if file.name().len() > 7 {
-                println!("{}", &file.name()[4..7])
-            };
             let mut f = match tempfile::NamedTempFile::new_in(&ref_dir) {
                 Ok(t) => t,
                 Err(e) => {
@@ -353,6 +351,7 @@ async fn submission_run(
         })
         .collect::<std::collections::BTreeMap<usize, (PathBuf, PathBuf)>>();
 
+    //   let f = in_refs.get(&1).unwrap().1.to_str().unwrap().to_string();
     // Finally, build config and add to tempfile.
     let config = acadcheck::acadchecker::config::Config {
         checker: acadcheck::checker::CheckerConfig {
@@ -433,22 +432,17 @@ async fn submission_run(
         ins.push(f.1 .1.unwrap());
         refs.push(f.1 .0.unwrap());
     }
-    
-    println!("{:?}", config);
 
     let mut sol = form.into_inner().solution.file;
-    
 
-    sandbox
+    let res = sandbox
         .run_once(
             &Docker::new(),
-            &mut ins,
-            &mut sol,
             &mut refs,
+            &mut sol,
+            &mut ins,
             &mut config_json,
         )
         .await;
-    HttpResponse::Ok().json(Response {
-        message: format!("Could not parse Refresh Token"),
-    })
+    HttpResponse::Ok().json(res)
 }

@@ -2,7 +2,7 @@
     "in": "/restricted/home/sandbox/tests/in/",
     "ref": "/restricted/home/sandbox/tests/ref/",
     "out": "/restricted/home/sandbox/tests/out/",
-    "cfg": "/restricted/home/sandbox",
+    "cfg": "/restricted/home/sandbox/",
     "src": "/restricted/home/sandbox/",
     "security": {
         "user": "sandbox",

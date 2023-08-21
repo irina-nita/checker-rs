@@ -80,7 +80,7 @@ impl Into<acadcheck::acadchecker::config::SupportedProcessor> for &UploadSupport
                 return acadcheck::acadchecker::config::SupportedProcessor::Gcc {
                     gcc: gcc.clone(),
                     flags: flags.clone(),
-                    exec: std::path::PathBuf::from("solution"),
+                    exec: std::path::PathBuf::from("/restricted/home/sandbox/solution"),
                 };
             }
             UploadSupportedProcessor::Python { python, flags } => {
