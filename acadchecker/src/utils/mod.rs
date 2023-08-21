@@ -1,9 +1,6 @@
 #![allow(unused)]
 #![allow(dead_code)]
 
-pub mod config;
-pub use config::{Config, Output, SupportedProcessor};
-
 use std::{
     fmt::Debug,
     io::{stdin, stdout, Stdin},
@@ -16,11 +13,11 @@ pub const STANDALONE_ARGS: [&str; 1] = ["--memory-footprint"];
 
 pub const KEY_PATH_ARGS: [&str; 6] = [
     "--config",
-    "--solution-file",  // TODO
-    "--solution-dir",   // TODO
-    "--inrefs",         // TODO
-    "--ins",            // TODO
-    "--refs",           //TODO
+    "--solution-file", // TODO
+    "--solution-dir",  // TODO
+    "--inrefs",        // TODO
+    "--ins",           // TODO
+    "--refs",          // TODO
 ];
 
 pub const KEY_STRING_ARGS: [&str; 1] = ["--language"];
@@ -98,17 +95,4 @@ where
         exit();
     }
     vec![]
-}
-
-#[cfg(test)]
-mod test {
-    use super::get_args;
-
-    #[test]
-    fn test_args() {
-        let args = vec!["--from-json", "other1", "other2", "--language", "other"];
-        get_args(args);
-        // let p = std::path::Path::new("./src/*.rs");
-        // assert!(p.exists());
-    }
 }

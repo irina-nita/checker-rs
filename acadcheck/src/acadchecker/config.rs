@@ -9,7 +9,7 @@ pub enum Output {
     None,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 #[non_exhaustive]
 pub enum SupportedProcessor {
     #[serde(rename = "gcc")]
@@ -32,7 +32,7 @@ pub enum SupportedProcessor {
     },
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 pub struct Security {
     pub user: String,
     pub group: String,

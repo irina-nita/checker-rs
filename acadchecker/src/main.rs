@@ -1,18 +1,18 @@
 //! `acadchecker` is a CLI tool for building checkers used in programming contests or homeworks.
 //! The checker is configured from a json file.
-//! 
+//!
 //! # Installation
-//! 
+//!
 //! ```shell
 //! cargo install acadchecker
 //! ```
-//! 
+//!
 //! # Usage
-//! 
+//!
 //! ```shell
 //! acadchecker --config config.json
 //! ```
-//! 
+//!
 //! # __Config Example__
 //! ```json
 //! {
@@ -36,7 +36,7 @@
 //!       "1": [
 //!         "/binary/tests/in/001.in",
 //!         "/binary/tests/ref/001.ref"
-//!       ],
+//!       ]
 //!     }
 //!   },
 //!   "processor": {
@@ -58,10 +58,10 @@
 //!     "group": "restricted"
 //!   }
 //! }
-//! 
+//!
 //! ```
-//! 
-//! 
+//!
+
 use std::os::unix::process::CommandExt;
 
 mod checker;
@@ -84,7 +84,9 @@ fn main() {
     }
 
     // Get configuration from file :).
-    let config = match utils::Config::from_json(std::path::PathBuf::from(config_file)) {
+    let config = match acadcheck::acadchecker::config::Config::from_json(std::path::PathBuf::from(
+        config_file,
+    )) {
         Ok(c) => c,
         Err(err) => {
             println!("{}", err.to_string());
@@ -137,9 +139,7 @@ fn main() {
 
     for monitor in &config.checker.monitors {
         match monitor {
-            acadcheck::checker::MonitorType::Timeout { limit } => {
-                timeout_limit = Some(*limit)
-            },
+            acadcheck::checker::MonitorType::Timeout { limit } => timeout_limit = Some(*limit),
             acadcheck::checker::MonitorType::TimeFootprint => {
                 _timefootprint = true;
             }
@@ -198,7 +198,7 @@ fn main() {
                             .stdout(std::process::Stdio::from(out))
                             .uid(uid)
                             .gid(gid);
-                            //.spawn();
+                        //.spawn();
 
                         let child = cmd.spawn();
 
@@ -239,17 +239,17 @@ fn main() {
             match child.1 {
                 Ok(mut c) => {
                     use wait_timeout::ChildExt;
-                    
+
                     let mut get_status = || {
                         if let Some(duration) = timeout_limit {
                             let status = c.wait_timeout(duration);
                             match status {
-                                Ok(s) => {
-                                    match s {
-                                        Some(st) => { return Ok(st); },
-                                        None => {
-                                            return Err(anyhow::format_err!("Time exceeded!"));
-                                        }
+                                Ok(s) => match s {
+                                    Some(st) => {
+                                        return Ok(st);
+                                    }
+                                    None => {
+                                        return Err(anyhow::format_err!("Time exceeded!"));
                                     }
                                 },
                                 Err(e) => {
@@ -258,12 +258,12 @@ fn main() {
                             }
                         } else {
                             match c.wait() {
-                                Ok(s) => { Ok(s) },
-                                Err(e) => { Err(anyhow::format_err!("{}", e.to_string())) }
+                                Ok(s) => Ok(s),
+                                Err(e) => Err(anyhow::format_err!("{}", e.to_string())),
                             }
                         }
                     };
-                    
+
                     if let Err(e) = (get_status)() {
                         h.insert(
                             child.0,
@@ -303,7 +303,7 @@ fn main() {
     };
 
     // Pray to God.
-    let acadchecker = checker::AcadChecker::new();
+    let acadchecker = acadcheck::acadchecker::AcadChecker::new();
     let result = acadchecker.run(config, _runner);
 
     println!("{}", serde_json::to_string_pretty(&result).unwrap());

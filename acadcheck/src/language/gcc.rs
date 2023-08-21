@@ -5,7 +5,7 @@ use super::Compiler;
 
 /// Most common languages supported by GCC.
 #[non_exhaustive]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "use-serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum SupportedGccLanguage {
     #[cfg_attr(feature = "use-serde", serde(rename = "c"))]
@@ -18,7 +18,7 @@ pub enum SupportedGccLanguage {
     Go,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "use-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Gcc {
     language: SupportedGccLanguage,
@@ -74,20 +74,24 @@ impl crate::language::Compiler for Gcc {
         // Destination file (executable).
         let dest = exec.to_str().unwrap();
 
-        // Exec name of the compiler.
-        let exec_without_path = match &self.language {
-            crate::language::gcc::SupportedGccLanguage::C => {
-                std::ffi::OsString::from(format!("gcc"))
-            }
-            crate::language::gcc::SupportedGccLanguage::Cpp => {
-                std::ffi::OsString::from(format!("g++"))
-            }
-            crate::language::gcc::SupportedGccLanguage::D => {
-                std::ffi::OsString::from(format!("gdc"))
-            }
-            crate::language::gcc::SupportedGccLanguage::Go => {
-                std::ffi::OsString::from(format!("gccgo"))
-            }
+        // Exec name of the compiler and lang.
+        let (exec_without_path, lang) = match &self.language {
+            crate::language::gcc::SupportedGccLanguage::C => (
+                std::ffi::OsString::from(format!("gcc")),
+                std::ffi::OsString::from(format!("c")),
+            ),
+            crate::language::gcc::SupportedGccLanguage::Cpp => (
+                std::ffi::OsString::from(format!("g++")),
+                std::ffi::OsString::from(format!("c++")),
+            ),
+            crate::language::gcc::SupportedGccLanguage::D => (
+                std::ffi::OsString::from(format!("gdc")),
+                std::ffi::OsString::from(format!("d")),
+            ),
+            crate::language::gcc::SupportedGccLanguage::Go => (
+                std::ffi::OsString::from(format!("gccgo")),
+                std::ffi::OsString::from(format!("go")),
+            ),
             _ => {
                 panic!("Not supported yet!")
             }
@@ -102,24 +106,26 @@ impl crate::language::Compiler for Gcc {
         };
 
         let compile_command = compile_command
+            .arg("-x")
+            .arg(lang)
             .arg(source)
             .arg("-o")
             .arg(dest)
             .stderr(std::process::Stdio::null())
             .stdout(std::process::Stdio::null());
 
-        // Execute and wait for status.
-        let exit_status = compile_command.status();
-
-        if let Err(e) = exit_status {
+        // Execute and wait for output and status.
+        let output = compile_command.output();
+         
+        if let Err(e) = output {
             return Err(crate::language::Error::CompilationFailed(format!(
                 "{}. (The compiler might not be in your PATH.)",
                 e.to_string()
             )));
         }
-
+        
         // Get exit status without panic.
-        let exit_status = exit_status.unwrap();
+        let exit_status = output.as_ref().unwrap().status;
 
         if exit_status.success() {
             // Return the command of the executable on success.

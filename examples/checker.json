@@ -1,0 +1,14 @@
+{
+    "monitor_type": {
+      "time": {
+        "limit": {
+          "secs": 20,
+          "nanos": 0
+        }
+      }
+    },
+    "in_refs": {
+      "submissions/01.in": "submissions/01.ref",
+      "submissions/02.in": "submissions/02.ref"
+    }
+}
