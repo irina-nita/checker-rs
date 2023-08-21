@@ -1,4 +1,4 @@
-#### Bash scrypt to build environment and run checker with encrypted file.
+#### Bash script to build environment and run checker with encrypted file.
 
 ### `Usage`
 ```bash
