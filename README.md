@@ -199,6 +199,13 @@ curl -X POST \
  | `417`         | `application/json`                |  `"Did not pass healtcheck: ..."`                                   |
  | `500`         | `application/json`                |    `"AWS Client not provided: ..."`                                 |
 
+##### Example cURL
+
+```javascript
+curl -X GET \
+     http://localhost:4000/healthcheck/aws
+```
+
 ------------------------------------------------------------------------------------------
 
 ### `GET /healthcheck/docker`
@@ -249,3 +256,11 @@ curl -X POST \
     "SystemTime": "+03:00"
 }
 ```
+
+##### Example cURL
+
+```javascript
+curl -X GET \
+     http://localhost:4000/healthcheck/docker
+```
+
