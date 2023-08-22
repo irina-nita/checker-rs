@@ -79,7 +79,13 @@ async fn main() -> std::io::Result<()> {
 
     // Start service.
     HttpServer::new(move || {
+        let cors = actix_cors::Cors::permissive()
+            .allow_any_origin()
+            .allow_any_method()
+            .max_age(3600);
+
         App::new()
+            .wrap(cors)
             .app_data(actix_web::web::Data::new(client.clone()))
             .app_data(actix_web::web::Data::new(sandbox_config.clone()))
             .wrap(tracing_actix_web::TracingLogger::default())

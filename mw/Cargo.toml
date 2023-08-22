@@ -33,4 +33,5 @@ async-trait = "0.1.73"
 env_logger = "0.9"
 tracing-actix-web = "0.7"
 http = "0.2.3"
+actix-cors = "0.6.4"
 
