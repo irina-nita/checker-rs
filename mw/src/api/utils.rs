@@ -153,6 +153,9 @@ impl To<NamedTempFile> for ZipFile<'_> {
             }
         }
 
+        // Current patch for Windows' carriage return:
+        let contents = contents.replace("\r\n", "\n");
+
         match other.write_all(contents.as_bytes()) {
             Ok(_) => {}
             Err(e) => {
