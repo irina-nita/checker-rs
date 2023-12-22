@@ -116,14 +116,14 @@ impl crate::language::Compiler for Gcc {
 
         // Execute and wait for output and status.
         let output = compile_command.output();
-         
+
         if let Err(e) = output {
             return Err(crate::language::Error::CompilationFailed(format!(
                 "{}. (The compiler might not be in your PATH.)",
                 e.to_string()
             )));
         }
-        
+
         // Get exit status without panic.
         let exit_status = output.as_ref().unwrap().status;
 

@@ -10,7 +10,13 @@ WORKDIR /usr/src/mw
 
 COPY . .
 
+RUN rustup default stable 
+
+RUN rustup update 
+
 RUN cargo install --path .
+
+ENV BUCKET_NAME="acadnet"
 
 CMD ["mw"]
 

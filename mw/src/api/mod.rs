@@ -54,7 +54,7 @@ async fn healthcheck_aws(req: actix_web::HttpRequest) -> actix_web::HttpResponse
             });
         }
     };
-    match client.list_objects_v2().bucket(BUCKET_NAME).send().await {
+    match client.list_objects_v2().bucket(utils::get_bucket()).send().await {
         Ok(objects) => HttpResponse::Ok().json(format!(
             "There are {} objects in bucket.",
             objects.key_count()
@@ -87,6 +87,9 @@ async fn submission_run(
     req: actix_web::HttpRequest,
     form: actix_multipart::form::MultipartForm<UploadSolution>,
 ) -> actix_web::HttpResponse {
+    // Save form as inner.
+    let mut form = form.into_inner();
+
     // Get AWS Client from app data.
     let client: Data<Client> = match req.app_data::<web::Data<Client>>() {
         Some(c) => c.clone(),
@@ -122,10 +125,65 @@ async fn submission_run(
     // Tests should be stored in `{problem_id}/tests.zip`.
     let tests_path = format!("{}/{}", form.problem.to_string(), TESTS_ARCHIVE);
 
+    // Save file from form:
+    let mut solution_file = form.solution.file;
+
+    // Prechecker.
+    if let Some(prechecker) = form.config.prechecker.clone() {
+        let source_path = format!("{}/{}", form.problem.to_string(), prechecker.source);
+        // Get source file from bucket.
+        let mut src = match client
+            .get_object()
+            .bucket(utils::get_bucket())
+            .key(source_path)
+            .send()
+            .await
+        {
+            Ok(t) => t,
+            Err(e) => {
+                return HttpResponse::InternalServerError().json(Response {
+                    message: format!("Prechecker failed: {}", e.to_string()),
+                });
+            }
+        };
+
+        // Save to tempfile.
+        let mut tmp = match tempfile::tempfile() {
+            Ok(t) => t,
+            Err(e) => {
+                return HttpResponse::InternalServerError().json(Response {
+                    message: e.to_string(),
+                });
+            }
+        };
+
+        // Write to temp file.
+        let mut byte_count = 0_usize;
+
+        while let Some(bytes) = src.body.try_next().await.unwrap() {
+            let bytes = match tmp.write(&bytes) {
+                Ok(b) => b,
+                Err(e) => {
+                    return HttpResponse::InternalServerError().json(Response {
+                        message: e.to_string(),
+                    });
+                }
+            };
+            byte_count += bytes;
+        }
+
+        // Run precheker.
+        let prechecker_result = utils::prechecker(&mut solution_file, &mut tmp, prechecker.lines);
+        // FIXME: Return nothing for now: Api not ready!
+        return HttpResponse::Ok().json(Response {
+            message: format!("{:?}", prechecker_result),
+        });
+    }
+
     // Get tests from bucket and problem id and store it in a tempdir.
     let mut tests = match client
         .get_object()
-        .bucket(BUCKET_NAME)
+        .bucket(utils::get_bucket())
         .key(tests_path)
         .send()
         .await
@@ -133,7 +191,7 @@ async fn submission_run(
         Ok(t) => t,
         Err(e) => {
             return HttpResponse::InternalServerError().json(Response {
-                message: e.to_string(),
+                message: format!("{},tests path and problem id", e.to_string()),
             });
         }
     };
@@ -323,8 +381,7 @@ async fn submission_run(
         solution: acadcheck::solution::Source::File(PathBuf::from(format!(
             "{}{}",
             sandbox_config.src.to_str().unwrap(),
-            form.solution
-                .file
+            solution_file
                 .path()
                 .file_name()
                 .unwrap()
@@ -386,12 +443,16 @@ async fn submission_run(
         ins.push(f.1 .1.unwrap());
         refs.push(f.1 .0.unwrap());
     }
-    let mut sol = form.into_inner().solution.file;
-
     let docker = Docker::new();
 
     let res = sandbox
-        .run_once(&docker, &mut refs, &mut sol, &mut ins, &mut config_json)
+        .run_once(
+            &docker,
+            &mut refs,
+            &mut solution_file,
+            &mut ins,
+            &mut config_json,
+        )
         .await;
 
     HttpResponse::Ok().json(res)

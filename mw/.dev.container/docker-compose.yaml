@@ -1,12 +1,18 @@
 version: '3'
 services:
   mw:
-    image: "irinanita/acadmw:0.3"
+    #image: "irinanita/acadmw:0.3"
+    image: "acadmw"
+    #build:
+      #context: ../
+      # dockerfile: Dockerfile
     ports:
       - 4000:4000
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:z
     env_file:
       - .config/.env
+    environment:
+      - BUCKET_NAME = $BUCKET_NAME
     privileged: true
 

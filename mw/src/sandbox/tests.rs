@@ -1,3 +1,4 @@
+use shiplift::Docker;
 use std::{io::Seek, path::Path};
 
 use super::*;

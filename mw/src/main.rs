@@ -30,7 +30,7 @@ pub struct AWSConfig {
 }
 
 #[actix_web::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> std::io::Result<()> { 
     // Get port and host env. variables.
     let config =
         envy::from_env::<Config>().expect("Please provide PORT, HOST and SANDBOX_CONFIG in .env");

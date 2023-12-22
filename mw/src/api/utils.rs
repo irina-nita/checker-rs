@@ -6,6 +6,7 @@ use std::{
 };
 
 use acadcheck::language::{gcc::Gcc, make::Makefile};
+use anyhow::anyhow;
 use futures_util::{AsyncWriteExt, StreamExt, TryStreamExt};
 use shiplift::{
     builder::ContainerOptionsBuilder, tty::TtyChunk, ContainerOptions, Docker, Exec,
@@ -24,6 +25,16 @@ pub const PROVIDER_NAME: &str = "CustomEnvironment";
 
 pub(crate) const IN_REGEX: &str = "in/[0-9][0-9][0-9].in";
 pub(crate) const REF_REGEX: &str = "ref/[0-9][0-9][0-9].ref";
+
+#[derive(Clone,serde::Serialize, serde::Deserialize)]
+pub(crate) struct Bucket {
+    pub(crate) bucket_name: String
+}
+
+pub(crate) fn get_bucket() -> String {
+    let bucket = envy::from_env::<Bucket>().expect("Please provide BUCKET_NAME in .env");
+    bucket.bucket_name
+}
 
 /// Basic response message on any response with status other than 200 OK.
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -49,6 +60,14 @@ pub(crate) struct UploadTimeLimit {
 pub(crate) struct UploadConfig {
     pub(crate) processor: UploadSupportedProcessor,
     pub(crate) time_limit: UploadTimeLimit,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) prechecker: Option<Prechecker>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+pub(crate) struct Prechecker {
+    pub(crate) lines: Vec<(usize, usize)>,
+    pub(crate) source: String,
 }
 
 /// Fix as the client shouldn't parse the executable name.
@@ -171,5 +190,83 @@ impl To<NamedTempFile> for ZipFile<'_> {
             }
         }
         Ok(())
+    }
+}
+
+pub fn prechecker(
+    solution: &mut NamedTempFile,
+    source: &mut File,
+    lines: Vec<(usize, usize)>,
+) -> Option<(usize, usize)> {
+    solution.seek(std::io::SeekFrom::Start(0)).unwrap();
+    source.seek(std::io::SeekFrom::Start(0)).unwrap();
+
+    let mut solution_buf = String::new();
+    let mut source_buf = String::new();
+
+    let _ = solution.read_to_string(&mut solution_buf).unwrap();
+    let _ = source.read_to_string(&mut source_buf).unwrap();
+
+    // Modify lines.
+    let lines: Vec<(usize, usize)> = lines.iter().map(|f| (f.0 - 1, f.1 - 1)).collect();
+
+    solution.seek(std::io::SeekFrom::Start(0)).unwrap();
+    source.seek(std::io::SeekFrom::Start(0)).unwrap();
+
+    // Save as matrices.
+    let solution_lines: Vec<_> = solution_buf.split('\n').collect();
+    let source_lines: Vec<_> = source_buf.split('\n').collect();
+
+    let mut i: usize = 0;
+    let mut j: usize = 0;
+    let mut k: usize = 0;
+
+    while i < solution_lines.len() && j < source_lines.len() {
+        if solution_lines[j] != source_lines[i] {
+            if solution_lines[j].is_empty() {
+                j += 1;
+                continue;
+            }
+
+            if i < lines[k].0 || i > lines[k].1 {
+                return Some((i, j + 1));
+            }
+            if solution_lines[j] == source_lines[lines[k].1 + 1] {
+                i = lines[k].1 + 2;
+                j += 1;
+                if k + 1 < lines.len() {
+                    k += 1;
+                }
+                continue;
+            }
+ 
+            return Some((i + 1, j));
+        }
+
+        if i > lines[k].1 && k + 1 < lines.len() {
+            k += 1;
+        }
+        i += 1;
+        j += 1;
+    }
+    return None;
+}
+
+#[cfg(test)]
+pub mod test {
+    use std::{fs::File, path::PathBuf};
+
+    use super::prechecker;
+
+    #[test]
+    pub fn test_prechecker() {
+        let solution_path = PathBuf::from("/home/irina/skel.cpp");
+        let source_path = PathBuf::from("/home/irina/sol.cpp");
+
+        let mut solution = File::open(solution_path).unwrap();
+        let mut source = File::open(source_path).unwrap();
+
+        let lines = vec![(13, 16), (1, 1)];
+        //prechecker(&mut solution, &mut source, lines);
     }
 }
