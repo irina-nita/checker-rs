@@ -183,7 +183,6 @@ fn main() {
 
                         if let Err(e) = &out {
                             // Translate Error to acadcheck::checker::Error.
-                            println!("Here bro!: {}", std::line!());
                             return (
                                 i.0,
                                 Err(acadcheck::checker::Error::TestError(e.to_string())),

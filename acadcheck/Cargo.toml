@@ -16,8 +16,10 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 # Enable serialization of checker output.
-default = ["use-serde"]
+default = ["use-serde", "acadnet"]
 use-serde = ["dep:serde"]
+# Acadnet specific implementation of the checker.
+acadnet = []
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"], optional = true }

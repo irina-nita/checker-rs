@@ -1,174 +1,54 @@
-//! Traits, structs and helpers related to the checker.
-#![allow(dead_code)]
+//! Generic checker and its components.
 
-pub(crate) mod config;
+pub(crate) mod configuration;
+pub(crate) mod diff;
+pub(crate) mod prechecker;
 
-pub use config::{CheckerConfig, MonitorType, OutputType, PartialEq};
-/// Errors that could occur running a test.
-#[derive(thiserror::Error, Debug)]
-#[non_exhaustive]
-pub enum Error {
-    #[error("Running solution failed: {0}")]
-    RunError(#[from] crate::language::Error),
+pub use configuration::Configuration;
 
-    #[error("Running test failed: {0}")]
-    TestError(String),
+use crate::submission;
 
-    #[error("Comparing output and reference failed with: {0}")]
-    CompareError(String),
-}
-
-/// Output of a running test.
-#[non_exhaustive]
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "use-serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum Output {
-    #[cfg_attr(feature = "use-serde", serde(rename = "passed"))]
-    Passed,
-    #[cfg_attr(feature = "use-serde", serde(rename = "failed"))]
-    Failed(String),
-    #[cfg_attr(feature = "use-serde", serde(rename = "score"))]
-    Score {
-        #[cfg_attr(feature = "use-serde", serde(rename = "points"))]
-        score: usize,
-        #[cfg_attr(feature = "use-serde", serde(skip_serializing_if = "Option::is_none"))]
-        message: Option<String>,
-    },
-}
-
-/// Checker is defined by a [CheckerConfig](crate::checker::CheckerConfig) and a
-/// runner (a closure a closure that defines the way a command should run.
-pub struct Checker<I, O, F, T, S, P>
+/// Checker used for running tests on a submission.
+/// 
+/// The checker is composed of a configuration, a differ and a prechecker.
+pub struct Checker<M, D, C>
 where
-    I: std::fmt::Debug + Eq + std::hash::Hash,
-    O: std::fmt::Debug + crate::checker::PartialEq<O> + std::cmp::PartialEq,
-    F: Fn(
-        &T,
-        std::collections::BTreeMap<usize, &I>,
-    ) -> std::collections::BTreeMap<usize, Result<O, crate::checker::Error>>,
-    T: IntoIterator<Item = S>,
-    S: AsRef<std::ffi::OsStr>,
-    P: IntoIterator<Item = crate::checker::config::MonitorType>,
+    M: IntoIterator<Item = crate::checker::configuration::MonitorType>,
+    D: crate::checker::diff::Differ,
+    C: crate::checker::prechecker::Prechecker,
 {
-    config: crate::checker::config::CheckerConfig<I, O, P>,
-    runner: F,
-    _phantom_t: std::marker::PhantomData<T>,
+    config: crate::checker::configuration::Configuration<M>,
+    differ: D,
+    prechecker: Option<C>,
 }
 
-impl<I, O, F, T, S, P> Checker<I, O, F, T, S, P>
+impl<M, D, C> Checker<M, D, C>
 where
-    I: std::fmt::Debug + Eq + std::hash::Hash,
-    O: std::fmt::Debug + crate::checker::PartialEq<O> + std::cmp::PartialEq,
-    F: Fn(
-        &T,
-        std::collections::BTreeMap<usize, &I>,
-    ) -> std::collections::BTreeMap<usize, Result<O, crate::checker::Error>>,
-    T: IntoIterator<Item = S>,
-    S: AsRef<std::ffi::OsStr>,
-    P: IntoIterator<Item = crate::checker::config::MonitorType>,
+    M: IntoIterator<Item = crate::checker::configuration::MonitorType>,
+    D: crate::checker::diff::Differ,
+    C: crate::checker::prechecker::Prechecker,
 {
-    /// Gets configuration as helper for building the checker.
-    /// The runner Fn is a closure that defines the way a command should be ran
-    /// with the inputs given.
-    pub fn new(config: crate::checker::config::CheckerConfig<I, O, P>, runner: F) -> Self {
+    pub fn new(
+        config: crate::checker::configuration::Configuration<M>,
+        differ: D,
+        prechecker: Option<C>,
+    ) -> Self {
         Self {
             config,
-            runner,
-            _phantom_t: std::marker::PhantomData::default(),
+            differ,
+            prechecker,
         }
     }
 
-    /// Runs the checker for a command given.
-    pub fn run(self, command: &T) -> std::collections::BTreeMap<usize, crate::checker::Output> {
-        let keys = self
-            .config
-            .in_refs
-            .iter()
-            .map(|m| (*(m.0), &m.1.0))
-            .collect::<std::collections::BTreeMap<_, _>>();
-
-        let outputs = (self.runner)(&command, keys);
-
-        let mut scored: bool = false;
-        let mut score_per_test: usize = 0;
-        if let crate::checker::config::OutputType::Scored { per_test } = self.config.output_type {
-            scored = true;
-            score_per_test = per_test;
-        }
-
-        let results: std::collections::BTreeMap<_, _> = outputs
-            .into_iter()
-            .map(|m| match m.1 {
-                Ok(output) => {
-                    let mut output_inner = String::new();
-                    let mut ref_inner = String::new();
-
-                    if output.ceq(
-                        &self.config.in_refs.get(&m.0).unwrap().1,
-                        &mut output_inner,
-                        &mut ref_inner,
-                    ) {
-                        return if scored {
-                            (
-                                m.0,
-                                crate::checker::Output::Score {
-                                    score: score_per_test,
-                                    message: None,
-                                },
-                            )
-                        } else {
-                            (m.0, crate::checker::Output::Passed)
-                        };
-                    } else {
-                        return if scored {
-                            (
-                                m.0,
-                                crate::checker::Output::Score {
-                                    score: 0,
-                                    message: Some(format!(
-                                        "Expected: {}\nBut got: {}\n",
-                                        ref_inner, output_inner
-                                    )),
-                                },
-                            )
-                        } else {
-                            (
-                                m.0,
-                                crate::checker::Output::Failed(format!(
-                                    "Expected: {}\nBut got: {}\n",
-                                    ref_inner, output_inner
-                                )),
-                            )
-                        };
-                    }
-                }
-                Err(e) => {
-                    return if scored {
-                        (
-                            m.0,
-                            crate::checker::Output::Score {
-                                score: 0,
-                                message: Some(format!("{}", e.to_string())),
-                            },
-                        )
-                    } else {
-                        (
-                            m.0,
-                            crate::checker::Output::Failed(format!("{}", e.to_string())),
-                        )
-                    };
-                }
-            })
-            .collect();
-
-        results
-    }
-
-    /// Runs the checker for a command given and consumes the checker.
-    pub fn run_once(
-        self,
-        command: &T,
-    ) -> std::collections::BTreeMap<usize, crate::checker::Output> {
-        self.run(command)
+    /// Runs the checker for a set of tests.
+    pub fn run<P>(
+        &self,
+        _tests: std::collections::BTreeMap<usize, (P, P)>,
+        // submission: submission::Submission,
+    ) -> std::collections::BTreeMap<usize, crate::checker::configuration::TestOutput>
+    where
+        P: AsRef<std::path::Path>,
+    {
+        todo!()
     }
 }

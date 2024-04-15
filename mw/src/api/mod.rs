@@ -54,7 +54,12 @@ async fn healthcheck_aws(req: actix_web::HttpRequest) -> actix_web::HttpResponse
             });
         }
     };
-    match client.list_objects_v2().bucket(utils::get_bucket()).send().await {
+    match client
+        .list_objects_v2()
+        .bucket(utils::get_bucket())
+        .send()
+        .await
+    {
         Ok(objects) => HttpResponse::Ok().json(format!(
             "There are {} objects in bucket.",
             objects.key_count()
@@ -381,12 +386,7 @@ async fn submission_run(
         solution: acadcheck::solution::Source::File(PathBuf::from(format!(
             "{}{}",
             sandbox_config.src.to_str().unwrap(),
-            solution_file
-                .path()
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap()
+            solution_file.path().file_name().unwrap().to_str().unwrap()
         ))),
         out_dir: sandbox_config.out.clone(),
         security: Some(sandbox_config.security.clone()),

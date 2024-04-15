@@ -26,9 +26,9 @@ pub const PROVIDER_NAME: &str = "CustomEnvironment";
 pub(crate) const IN_REGEX: &str = "in/[0-9][0-9][0-9].in";
 pub(crate) const REF_REGEX: &str = "ref/[0-9][0-9][0-9].ref";
 
-#[derive(Clone,serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Bucket {
-    pub(crate) bucket_name: String
+    pub(crate) bucket_name: String,
 }
 
 pub(crate) fn get_bucket() -> String {
@@ -239,7 +239,7 @@ pub fn prechecker(
                 }
                 continue;
             }
- 
+
             return Some((i + 1, j));
         }
 

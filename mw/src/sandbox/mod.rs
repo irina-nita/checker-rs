@@ -1,7 +1,6 @@
 #[cfg(test)]
 pub mod tests;
 
-use anyhow::anyhow;
 use async_trait::async_trait;
 use futures_util::{StreamExt, TryStreamExt};
 use shiplift::{ContainerOptions, PullOptions, RmContainerOptions};

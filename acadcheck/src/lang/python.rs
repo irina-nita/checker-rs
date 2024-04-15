@@ -1,4 +1,4 @@
-//! Python implementation as Interpreter with support for specific versions.
+//! Python implementation as Interpreter.
 
 use super::Interpreter;
 #[derive(Debug, Clone)]
@@ -7,10 +7,16 @@ pub struct Python {
     version: Option<String>,
 }
 
+impl Default for Python {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Python {
     /// Returns a Python instance without a version.
     pub fn new() -> Self {
-        return Self { version: None };
+        Self { version: None }
     }
 
     /// Adds a version. If the format is invalid, it will return an error.
@@ -23,51 +29,50 @@ impl Python {
 
         if version_reg.is_match(version.as_ref()) {
             self.version = Some(String::from(version.as_ref()));
-            return Ok(self);
+            Ok(self)
         } else {
-            return Err(anyhow::format_err!("Version of python is not valid"));
+            Err(anyhow::format_err!("Version of python is not valid"))
         }
     }
 }
 
-impl crate::language::LanguageProcessor for Python {
-    fn run(
+impl crate::lang::LanguageProcessor for Python {
+    fn run<S, P>(
         &self,
-        args: Option<Vec<std::ffi::OsString>>,
-        source: crate::solution::Source,
-        _exec: Option<std::path::PathBuf>,
-    ) -> Result<Vec<std::ffi::OsString>, crate::language::Error> {
+        args: Option<Vec<S>>,
+        source: crate::submission::Source<P>,
+        _exec: Option<P>,
+    ) -> Result<Vec<std::ffi::OsString>, crate::error::CheckerError>
+    where
+        S: AsRef<std::ffi::OsStr>,
+        P: AsRef<std::path::Path>,
+    {
         Ok(self.run_interpreted(args, source))
     }
 }
 
-impl crate::language::Interpreter for Python {
-    fn run_interpreted<S, I>(
+impl crate::lang::Interpreter for Python {
+    fn run_interpreted<S, I, P>(
         &self,
         flags: Option<I>,
-        source: crate::solution::Source,
+        source: crate::submission::Source<P>,
     ) -> Vec<std::ffi::OsString>
     where
         S: AsRef<std::ffi::OsStr>,
         I: IntoIterator<Item = S>,
+        P: AsRef<std::path::Path>,
     {
         // Python exec that should be in PATH.
         let py = match &self.version {
             Some(version) => std::ffi::OsString::from(format!("python{}", version)),
-            None => std::ffi::OsString::from(format!("python")),
+            None => std::ffi::OsString::from("python"),
         };
 
         // Get source os string to pass into command.
         let source = match source {
-            crate::solution::Source::File(file) => std::ffi::OsString::from(file.to_str().unwrap()),
-            crate::solution::Source::Directory(dir) => {
-                std::ffi::OsString::from(format!("{}/*", dir.to_str().unwrap()))
-            }
-            crate::solution::Source::Regex { regex } => {
-                std::ffi::OsString::from(format!("{}", regex.as_str()))
-            }
-            _ => {
-                panic!("Source type not supported yet!")
+            crate::submission::Source::File(file) => std::ffi::OsString::from(file.as_ref()),
+            crate::submission::Source::Directory(path) => {
+                std::ffi::OsString::from(format!("{}/*", path.as_ref().to_string_lossy()))
             }
         };
 

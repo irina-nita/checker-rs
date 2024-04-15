@@ -23,6 +23,7 @@
 // #![feature(marker_trait_attr)]
 #![allow(unreachable_patterns)]
 #![allow(dead_code)]
+#![allow(unused)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 extern crate regex;
@@ -35,8 +36,14 @@ extern crate serde;
 #[cfg(feature = "use-serde")]
 extern crate serde_json;
 
-pub mod acadchecker;
 pub mod checker;
-pub mod language;
-pub mod solution;
+
+#[macro_use]
+pub mod error;
+
+pub mod lang;
+pub mod submission;
 pub(crate) mod util;
+
+#[cfg(feature = "acadnet")]
+pub mod acadnet;
